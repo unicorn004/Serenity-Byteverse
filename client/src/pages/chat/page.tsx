@@ -36,45 +36,7 @@ export default function ChatPage() {
   //   messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   // }, [messages])
 
-  // const handleSendMessage = () => {
-  //   if (!inputValue.trim()) return
-
-  //   // Add user message
-  //   const userMessage: Message = {
-  //     id: Date.now().toString(),
-  //     content: inputValue,
-  //     sender: "user",
-  //     timestamp: new Date(),
-  //   }
-  //   setMessages((prev) => [...prev, userMessage])
-  //   setInputValue("")
-
-  //   // Simulate bot typing
-  //   setIsTyping(true)
-  //   setTimeout(() => {
-  //     setIsTyping(false)
-
-  //     // Add bot response
-  //     const botResponses = [
-  //       "I understand how you're feeling. Would you like to talk more about that?",
-  //       "Thank you for sharing. What do you think triggered these feelings?",
-  //       "I'm here to listen. Have you tried any coping strategies that helped before?",
-  //       "That sounds challenging. Let's explore some ways to help you feel better.",
-  //       "I appreciate you opening up. Would it help to practice a quick breathing exercise together?",
-  //     ]
-
-  //     const randomResponse = botResponses[Math.floor(Math.random() * botResponses.length)]
-
-  //     const botMessage: Message = {
-  //       id: (Date.now() + 1).toString(),
-  //       content: randomResponse,
-  //       sender: "bot",
-  //       timestamp: new Date(),
-  //     }
-
-  //     setMessages((prev) => [...prev, botMessage])
-  //   }, 1500)
-  // }
+  
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
   

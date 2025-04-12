@@ -42,6 +42,8 @@ class GradeAssessmentView(APIView):
         assessment_id = request.data.get("assessment_id")
         user_id = request.data.get("user_id")
         
+        print("assessmentid = ",assessment_id, "userid = ",user_id)
+        
         if not assessment_id or not user_id:
             return Response({"error": "Missing assessment_id or user_id"}, status=400)
         
