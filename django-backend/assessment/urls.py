@@ -19,5 +19,6 @@ router.register(r"user_assessments", UserAssessmentViewSet)
 urlpatterns = [
     path("", include(router.urls)),
     path("grade/", views.GradeAssessmentView.as_view()),
+    path("assess_user/", views.AssessUserView.as_view()),
 
 ]

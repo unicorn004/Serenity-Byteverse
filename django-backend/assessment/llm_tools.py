@@ -207,7 +207,11 @@ def assess_user(user_id):
     user_profile = UserProfile.objects.get(id = user_id)
     medical_profile = user_profile.medical_profile
     remark = generate_user_remark(medical_profile)
-    
+    medical_profile.llm_remark = remark
+    medical_profile.save()
+    print("Users Mediacal Profile updated with LLM Remarks")
+
+
 
 
 # Example Usage
