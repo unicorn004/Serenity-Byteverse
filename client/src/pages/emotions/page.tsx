@@ -20,13 +20,16 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+import { get_emotion } from "../../api/emotion";
+
 type Emotion =
   | "happy"
   | "sad"
   | "angry"
   | "neutral"
   | "surprised"
-  | "fearful"
+  | "fear"
+  | "disgust"
   | null;
 
 interface EmotionData {
@@ -37,6 +40,33 @@ interface EmotionData {
   suggestions: string[];
 }
 
+const emotionColors = {
+  happy: "#FFD700", // Gold
+  sad: "#4682B4", // Steel Blue
+  angry: "#FF4500", // Orange Red
+  neutral: "#808080", // Gray
+  surprised: "#FF69B4", // Hot Pink
+  fearful: "#8B0000", // Dark Red
+};
+
+const messages = [
+  "Keep smiling! 😊",
+  "It's okay to feel this way. 💙",
+  "Take deep breaths and relax. 🌿",
+  "Stay strong, you're doing great! 💪",
+  "Life is full of surprises! 🎉",
+  "You got this! Keep going. 🚀",
+];
+
+const suggestions = [
+  ["Listen to music", "Go for a walk", "Talk to a friend"],
+  ["Watch a comedy movie", "Read a book", "Try meditation"],
+  ["Take deep breaths", "Exercise", "Write down your thoughts"],
+  ["Practice mindfulness", "Take a break", "Drink some water"],
+  ["Share your happiness", "Capture the moment", "Celebrate wins"],
+  ["Face your fears", "Talk to someone", "Practice self-care"],
+];
+
 export default function EmotionsPage() {
   const [currentEmotion, setCurrentEmotion] = useState<Emotion>(null);
   const [emotionData, setEmotionData] = useState<EmotionData | null>(null);
@@ -45,81 +75,80 @@ export default function EmotionsPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const emotions: Record<string, EmotionData> = {
-    happy: {
-      emotion: "happy",
-      confidence: 87,
-      color: "bg-green-500",
-      message: "You're feeling happy! That's wonderful to see.",
-      suggestions: [
-        "Celebrate this positive mood by doing something you enjoy",
-        "Share your happiness with someone else through a kind gesture",
-        "Journal about what's contributing to your happiness",
-        "Use this energy for a creative project you've been wanting to start",
-      ],
-    },
-    sad: {
-      emotion: "sad",
-      confidence: 76,
-      color: "bg-blue-500",
-      message: "You seem to be feeling sad. It's okay to feel this way.",
-      suggestions: [
-        "Practice self-compassion and be gentle with yourself",
-        "Try a brief mindfulness meditation to acknowledge your feelings",
-        "Reach out to a trusted friend or family member",
-        "Engage in a calming activity like reading or listening to music",
-      ],
-    },
-    angry: {
-      emotion: "angry",
-      confidence: 82,
-      color: "bg-red-500",
-      message: "You appear to be feeling angry or frustrated.",
-      suggestions: [
-        "Take a few deep breaths to help calm your nervous system",
-        "Try physical activity to release tension, like a brisk walk",
-        "Write down what's bothering you to gain perspective",
-        "Consider if there's a constructive way to address what's upsetting you",
-      ],
-    },
-    neutral: {
-      emotion: "neutral",
-      confidence: 91,
-      color: "bg-gray-500",
-      message: "You seem to be in a neutral state right now.",
-      suggestions: [
-        "This is a good time for planning or decision-making",
-        "Consider checking in with yourself about how you're really feeling",
-        "Try a brief gratitude practice to boost positive emotions",
-        "Use this balanced state for a mindfulness practice",
-      ],
-    },
-    surprised: {
-      emotion: "surprised",
-      confidence: 68,
-      color: "bg-purple-500",
-      message: "You look surprised! Something unexpected happened?",
-      suggestions: [
-        "Take a moment to process what surprised you",
-        "Consider whether this surprise is positive, negative, or neutral",
-        "Use this alertness for creative thinking or problem-solving",
-        "If the surprise was stressful, try some deep breathing",
-      ],
-    },
-    fearful: {
-      emotion: "fearful",
-      confidence: 73,
-      color: "bg-yellow-500",
-      message: "You seem to be experiencing fear or anxiety.",
-      suggestions: [
-        "Try the 5-4-3-2-1 grounding technique (notice 5 things you see, 4 things you feel, etc.)",
-        "Focus on your breathing - try breathing in for 4 counts, hold for 2, out for 6",
-        "Remind yourself that you are safe right now",
-        "Consider what specific fear is present and if there are steps you can take",
-      ],
-    },
-  };
-
+  // const emotions: Record<string, EmotionData> = {
+  //   happy: {
+  //     emotion: "happy",
+  //     confidence: 87,
+  //     color: "bg-green-500",
+  //     message: "You're feeling happy! That's wonderful to see.",
+  //     suggestions: [
+  //       "Celebrate this positive mood by doing something you enjoy",
+  //       "Share your happiness with someone else through a kind gesture",
+  //       "Journal about what's contributing to your happiness",
+  //       "Use this energy for a creative project you've been wanting to start",
+  //     ],
+  //   },
+  //   sad: {
+  //     emotion: "sad",
+  //     confidence: 76,
+  //     color: "bg-blue-500",
+  //     message: "You seem to be feeling sad. It's okay to feel this way.",
+  //     suggestions: [
+  //       "Practice self-compassion and be gentle with yourself",
+  //       "Try a brief mindfulness meditation to acknowledge your feelings",
+  //       "Reach out to a trusted friend or family member",
+  //       "Engage in a calming activity like reading or listening to music",
+  //     ],
+  //   },
+  //   angry: {
+  //     emotion: "angry",
+  //     confidence: 82,
+  //     color: "bg-red-500",
+  //     message: "You appear to be feeling angry or frustrated.",
+  //     suggestions: [
+  //       "Take a few deep breaths to help calm your nervous system",
+  //       "Try physical activity to release tension, like a brisk walk",
+  //       "Write down what's bothering you to gain perspective",
+  //       "Consider if there's a constructive way to address what's upsetting you",
+  //     ],
+  //   },
+  //   neutral: {
+  //     emotion: "neutral",
+  //     confidence: 91,
+  //     color: "bg-gray-500",
+  //     message: "You seem to be in a neutral state right now.",
+  //     suggestions: [
+  //       "This is a good time for planning or decision-making",
+  //       "Consider checking in with yourself about how you're really feeling",
+  //       "Try a brief gratitude practice to boost positive emotions",
+  //       "Use this balanced state for a mindfulness practice",
+  //     ],
+  //   },
+  //   surprised: {
+  //     emotion: "surprised",
+  //     confidence: 68,
+  //     color: "bg-purple-500",
+  //     message: "You look surprised! Something unexpected happened?",
+  //     suggestions: [
+  //       "Take a moment to process what surprised you",
+  //       "Consider whether this surprise is positive, negative, or neutral",
+  //       "Use this alertness for creative thinking or problem-solving",
+  //       "If the surprise was stressful, try some deep breathing",
+  //     ],
+  //   },
+  //   fearful: {
+  //     emotion: "fearful",
+  //     confidence: 73,
+  //     color: "bg-yellow-500",
+  //     message: "You seem to be experiencing fear or anxiety.",
+  //     suggestions: [
+  //       "Try the 5-4-3-2-1 grounding technique (notice 5 things you see, 4 things you feel, etc.)",
+  //       "Focus on your breathing - try breathing in for 4 counts, hold for 2, out for 6",
+  //       "Remind yourself that you are safe right now",
+  //       "Consider what specific fear is present and if there are steps you can take",
+  //     ],
+  //   },
+  // };
 
   const startCamera = async () => {
     if (!videoRef.current) {
@@ -156,7 +185,7 @@ export default function EmotionsPage() {
     }
   };
 
-  const captureImage = () => {
+  const captureImage = async () => {
     if (!videoRef.current || !canvasRef.current) return;
 
     setAnalyzing(true);
@@ -177,24 +206,54 @@ export default function EmotionsPage() {
       canvasRef.current.height
     );
 
-    // Simulate emotion detection (in a real app, you'd send the image to an API)
-    setTimeout(() => {
-      const emotions = [
-        "happy",
-        "sad",
-        "angry",
-        "neutral",
-        "surprised",
-        "fearful",
-      ];
-      const randomEmotion = emotions[
-        Math.floor(Math.random() * emotions.length)
-      ] as Emotion;
+    // Convert canvas image to Blob
+    canvasRef.current.toBlob(async (blob) => {
+      if (!blob) {
+        setAnalyzing(false);
+        console.error("Failed to capture image from canvas");
+        return;
+      }
 
-      setCurrentEmotion(randomEmotion);
-      setEmotionData(emotions[randomEmotion]);
-      setAnalyzing(false);
-    }, 2000);
+      // Convert blob to File (Django expects a file)
+      const imageFile = new File([blob], "captured_frame.jpg", {
+        type: "image/jpeg",
+      });
+
+      try {
+        // Call API with the captured image
+        const response = await get_emotion(imageFile);
+        console.log("Emotion Detection Response:", response);
+
+        if (response && response.emotions) {
+          const emotions = response.emotions; // Expected format: { happy: 0.5, sad: 0.2, ... }
+          const highestEmotion = Object.entries(emotions).reduce(
+            (max, [emotion, confidence]) =>
+              confidence > max.confidence ? { emotion, confidence } : max,
+            { emotion: "", confidence: 0 }
+          );
+
+          const randomIndex = Math.floor(Math.random() * messages.length);
+
+          const edata = {
+            emotion: highestEmotion.emotion,
+            confidence: highestEmotion.confidence,
+            color: emotionColors[highestEmotion.emotion] || "#000000", // Default to black if not found
+            message: messages[randomIndex],
+            suggestions: suggestions[randomIndex],
+          };
+    
+          // Update state
+          setCurrentEmotion(edata.emotion);
+          setEmotionData(edata);
+        } else {
+          console.warn("Unexpected API response:", response);
+        }
+      } catch (error) {
+        console.error("Error detecting emotion:", error);
+      } finally {
+        setAnalyzing(false);
+      }
+    }, "image/jpeg");
   };
 
   // Clean up camera on unmount
@@ -331,7 +390,7 @@ export default function EmotionsPage() {
 
                   <div>
                     <h4 className="mb-2 font-medium">Emotion Intensity</h4>
-                    <Progress value={emotionData?.confidence} className="h-2" />
+                    <Progress value={emotionData?.confidence ? emotionData.confidence*100:emotionData?.confidence} className="h-2" />
                   </div>
 
                   <div>
@@ -426,7 +485,7 @@ function getEmotionIcon(emotion: Emotion) {
       return "😐";
     case "surprised":
       return "😲";
-    case "fearful":
+    case "fear":
       return "😨";
     default:
       return "❓";
