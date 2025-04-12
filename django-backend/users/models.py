@@ -15,6 +15,16 @@ class UserProfile(models.Model):
     bio = models.TextField(blank=True)  # User-provided description
     preferences = models.JSONField(default=dict, null=True, blank=True)  # e.g., {"preferred_language": "en"}
     embedding = models.JSONField(null=True, blank=True)  # Vector for recommendations
+    def save(self, *args, **kwargs):
+        """
+        Custom save method that ensures a MedicalProfile is created 
+        when a UserProfile is first saved.
+        """
+        is_new = self.pk is None  # Check if this is a new instance
+        super().save(*args, **kwargs)  # Save UserProfile first
+
+        if is_new:  # Create MedicalProfile only if UserProfile is new
+            MedicalProfile.objects.create(user=self)
 
 class MedicalProfile(models.Model):
     user = models.OneToOneField(UserProfile, on_delete=models.CASCADE, related_name='medical_profile')

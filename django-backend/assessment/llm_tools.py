@@ -1,6 +1,7 @@
 from langchain_groq import ChatGroq
 from langchain.prompts import PromptTemplate
 from .models import Assessment, Question, Answer, UserAssessment, UserProfile
+from users.models import UserProfile, MedicalProfile
 import json
 from dotenv import load_dotenv
 load_dotenv()
@@ -64,16 +65,16 @@ USER_REMARK_PROMPT = PromptTemplate(
 )
 
 # Function to Assign LLM Scores
-def assign_llm_scores(responses):
+def assign_llm_scores(responses, user):
     """
     Assign subjective scores to user responses using the LLM.
     """
     for question in responses:
-        response = question.response
+        response = question.responses.filter(user=user).first()
         scoring_context = {
             "question": question.text,
             "response": response.response_text or str(response.response_score),
-            "guidelines": question.scoring_guidelines or "Score based on severity (0-3).",
+            "guidelines": question.scoring_guidelines or "Score based on severity (0-10).",
         }
         prompt = SCORING_PROMPT.format(**scoring_context)
         llm_response = llm.invoke(prompt)
@@ -82,6 +83,7 @@ def assign_llm_scores(responses):
         except ValueError:
             response.llm_score = None  # Handle invalid outputs gracefully
         response.save()
+        print("assingned LLM score")
 
 def get_assessment_context(user_assessment):
     user_profile = user_assessment.user
@@ -94,7 +96,7 @@ def get_assessment_context(user_assessment):
             # "mood_score": user_profile.mood_score,
         }),
         "responses": json.dumps({
-            resp.text: resp.response.response_text or str(resp.response.response_score)
+            resp.text: resp.responses.filter(user=user_profile).first().response_text or str(resp.response.filter(user=user_profile).first().response_score)
             for resp in questions
         }),
         "assessment": user_assessment.assessment.name,
@@ -117,6 +119,7 @@ def generate_llm_remark(user_assessment):
     llm_response = llm.invoke(prompt)
     user_assessment.llm_remark = llm_response.content.strip()
     user_assessment.save()
+    print("Generated_LLM_Remark")
 
 def get_user_context(userprofile):
     assessments = userprofile.user.assessments.all()
@@ -150,6 +153,7 @@ def get_user_context(userprofile):
         "assessments_context":assessment_context
      
     }
+    print("Got User Context")
     return context
 
 
@@ -158,6 +162,7 @@ def generate_user_remark(userprofile): # THis rather has to be a medicalProfile 
     prompt = USER_REMARK_PROMPT.format(**context)
     llm_response = llm.invoke(prompt)
     userprofile.llm_remark = llm_response.content.strip()
+    print("Generated User Remark")
 
 # Function to Dynamically Suggest Questions
 def suggest_next_question(user_assessment, medicalprofile):
@@ -165,7 +170,8 @@ def suggest_next_question(user_assessment, medicalprofile):
     Suggest the next relevant question based on the current context.
     """
     user_context = get_user_context(medicalprofile)["user_context"]
-    context = get_assessment_context(user_assessment)
+    ass_context = get_assessment_context(user_assessment)
+    context = {'user_context':user_context, 'assessment_context':ass_context}
     prompt = DYNAMIC_QUESTION_PROMPT.format(context=context)
     llm_response = llm.invoke(prompt)
     return llm_response.content.strip()
@@ -175,21 +181,33 @@ def grade_assessment(assessment_id, user_id):
     """
     Grade a completed assessment and update the UserAssessment record.
     """
-    user_assessment = UserAssessment.objects.get(assessment__id=assessment_id, user_id=user_id)
+    print("Grading Assessment...")
+    user_assessment = UserAssessment.objects.get(assessment=assessment_id, user=user_id)
     questions = user_assessment.assessment.questions.all()
+    user = user_assessment.user
+    user_assessment.is_completed = True
     
     
     # Step 1: Assign LLM Scores
-    assign_llm_scores(questions)
+    assign_llm_scores(questions, user)
     
     # Step 2: Calculate Total Score and Severity
-    user_assessment.calculate_total_score()
-    user_assessment.determine_severity()
+    # user_assessment.calculate_total_score() # ALready calculated within severity function
+    user_assessment.severity = user_assessment.determine_severity()
     
     # Step 3: Generate Subjective Remark
     generate_llm_remark(user_assessment)
     
     # Save the updated UserAssessment
     user_assessment.save()
+    print("Grading Complemte")
+
+
+def assess_user(user_id):
+    user_profile = UserProfile.objects.get(id = user_id)
+    medical_profile = user_profile.medical_profile
+    remark = generate_user_remark(medical_profile)
+    
+
 
 # Example Usage

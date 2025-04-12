@@ -38,6 +38,7 @@ class UserAssessmentViewSet(viewsets.ModelViewSet):
 
 class GradeAssessmentView(APIView):
     def post(self, request, *args, **kwargs):
+        
         assessment_id = request.data.get("assessment_id")
         user_id = request.data.get("user_id")
         
