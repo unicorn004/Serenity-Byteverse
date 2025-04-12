@@ -51,6 +51,7 @@ INSTALLED_APPS = [
      'forum',
      'users',
      'corsheaders',
+     'rest_framework_simplejwt.token_blacklist',
 ]
 
 REST_FRAMEWORK = {
@@ -221,6 +222,7 @@ SIMPLE_JWT = {
     "TOKEN_BLACKLIST_SERIALIZER": "rest_framework_simplejwt.serializers.TokenBlacklistSerializer",
     "SLIDING_TOKEN_OBTAIN_SERIALIZER": "rest_framework_simplejwt.serializers.TokenObtainSlidingSerializer",
     "SLIDING_TOKEN_REFRESH_SERIALIZER": "rest_framework_simplejwt.serializers.TokenRefreshSlidingSerializer",
+    "BLACKLIST_AFTER_ROTATION": False,
 }
 
 
