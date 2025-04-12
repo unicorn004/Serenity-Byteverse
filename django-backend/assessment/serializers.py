@@ -77,5 +77,6 @@ class UserAssessmentSerializer(serializers.ModelSerializer):
             "date_taken",
             "llm_remark",
             "is_completed",
+            "solutions",
         ]
         read_only_fields = ["id", "date_taken", "total_score", "severity"]

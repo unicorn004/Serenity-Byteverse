@@ -6,7 +6,6 @@ import os
 # Initialize Pinecone client
 pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
 
-
 # Creating New Pinecone Index
 if not pc.has_index("serenity"):
     pc.create_index(

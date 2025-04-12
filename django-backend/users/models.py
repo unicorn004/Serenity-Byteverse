@@ -194,6 +194,7 @@ class MedicalProfile(models.Model):
     medications = models.TextField(blank=True, null=True)
     personality_score = models.FloatField(null=True, blank=True)  # 0-100 grayscale
     llm_remark = models.TextField(blank=True, null=True)
+    suggested_solutions = models.TextField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.user.user.username}'s Medical Profile"

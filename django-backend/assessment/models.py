@@ -45,6 +45,7 @@ class UserAssessment(models.Model):
     severity = models.CharField(max_length=50, blank=True, null=True)
     date_taken = models.DateTimeField(auto_now_add=True)
     llm_remark = models.TextField(blank=True, null=True)  # LLM-generated insight
+    solutions = models.TextField(null=True, blank=True)
     is_completed = models.BooleanField(default=False)
 
     def calculate_total_score(self):
