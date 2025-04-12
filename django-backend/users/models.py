@@ -20,6 +20,7 @@ class UserProfile(models.Model):
     preferences = models.JSONField(default=dict, null=True, blank=True)
     last_login = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     daily_mood = models.JSONField(default=list)  # Stores last 7 days of mood (0-10)
+    emotion = models.JSONField(null=True, blank=True)
     wellness_score = models.IntegerField(
         default=50,
         validators=[MinValueValidator(0), MaxValueValidator(100)]
