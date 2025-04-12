@@ -43,12 +43,15 @@ class LoginSerializer(serializers.Serializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        exclude = ['user']
+        fields = '__all__'
+
+        # exclude = ['user']
 
 class MedicalProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = MedicalProfile
-        exclude = ['user']
+        # exclude = ['user']
+        fields = '__all__'
 
 class DiarySerializer(serializers.ModelSerializer):
     class Meta:
