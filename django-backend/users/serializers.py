@@ -10,7 +10,7 @@ class UserSerializer(serializers.ModelSerializer):
     role = serializers.CharField(source='profile.role', read_only=True)
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'streak', 'role']
+        exclude = ['id']
 
 class RegisterSerializer(serializers.ModelSerializer):
     class Meta:

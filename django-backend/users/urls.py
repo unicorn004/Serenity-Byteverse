@@ -5,7 +5,8 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from users.views.medical_profile_views import MedicalProfileViewSet
 from users.views.user_views import (
     RegisterView, LoginView, UserProfileViewSet, DiaryListView, 
-    GoalListView, NotificationListView, CreateDiaryView, CreateGoalView
+    GoalListView, NotificationListView, CreateDiaryView, 
+    CreateGoalView
 )
 
 # Create router for ViewSets
@@ -19,13 +20,13 @@ urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
-    # API Endpoints
-    path('api/', include(router.urls)),  # ViewSet-based endpoints
+    # ViewSet-based endpoints
+    path('api/', include(router.urls)),  
 
     # Function-based views (non-ViewSet)
     path('diary/', DiaryListView.as_view(), name='diary-list'),
-    path('goal/', GoalListView.as_view(), name='goal-list'),
-    path('notifications/', NotificationListView.as_view(), name='notification-list'),
     path('diary/create/', CreateDiaryView.as_view(), name='create-diary'),
+    path('goal/', GoalListView.as_view(), name='goal-list'),
     path('goal/add/', CreateGoalView.as_view(), name='goal-add'),
+    path('notifications/', NotificationListView.as_view(), name='notification-list'),
 ]
