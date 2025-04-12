@@ -4,9 +4,9 @@ import { Facebook, Instagram, Twitter } from "lucide-react";
 
 export default function Footer() {
   return (
-    <footer className="border-t bg-background/80 backdrop-blur-md">
-      <div className="container py-8">
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+    <footer className="border-t bg-background/80 backdrop-blur-md ">
+      <div className="container py-8 ">
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4 lg:pl-15 lg:pr-15 md:pl-10 md:pr-10 sm:pl-5 sm:pr-5">
           <div>
             <h3 className="mb-4 text-lg font-semibold">MindWell</h3>
             <p className="text-sm text-muted-foreground">

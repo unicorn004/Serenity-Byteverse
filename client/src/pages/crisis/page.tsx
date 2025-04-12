@@ -20,7 +20,7 @@ export default function CrisisPage() {
   const [showBreathingExercise, setShowBreathingExercise] = useState(false)
 
   return (
-    <div className="container mx-auto max-w-5xl py-8">
+    <div className="container mx-auto max-w-5xl py-8 lg:pl-15 lg:pr-15 md:pl-10 md:pr-10 sm:pl-5 sm:pr-5">
       <div className="mb-8 flex flex-col items-center justify-center text-center">
         <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-300">
           <AlertCircle className="h-8 w-8" />

@@ -86,7 +86,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-5xl py-8">
+    <div className="container mx-auto max-w-5xl py-8 lg:pl-25 lg:pr-25 md:pl-15 md:pr-15 sm:pl-10 sm:pr-10">
       <h1 className="mb-8 text-center text-3xl font-bold text-primary">AI Wellness Assistant</h1>
 
       <Tabs defaultValue="chat" className="w-full">

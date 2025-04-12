@@ -165,7 +165,7 @@ export default function EmotionsPage() {
   }, [])
 
   return (
-    <div className="container mx-auto max-w-5xl py-8">
+    <div className="container mx-auto max-w-5xl py-8 lg:pl-15 lg:pr-15 md:pl-10 md:pr-10 sm:pl-5 sm:pr-5">
       <h1 className="mb-8 text-center text-3xl font-bold text-primary">Emotion Detection</h1>
 
       <div className="grid gap-8 md:grid-cols-2">
