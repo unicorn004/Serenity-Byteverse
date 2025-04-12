@@ -53,6 +53,7 @@ INSTALLED_APPS = [
      'users',
      'corsheaders',
      'rest_framework_simplejwt.token_blacklist',
+     'django_extensions',
 ]
 
 REST_FRAMEWORK = {
