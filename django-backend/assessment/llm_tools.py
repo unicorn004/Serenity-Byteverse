@@ -1,7 +1,7 @@
 from langchain_groq import ChatGroq
 from langchain.prompts import PromptTemplate
 from .models import Assessment, Question, Answer, UserAssessment, UserProfile
-from users.models import UserProfile, MedicalProfile
+from users.models import UserProfile, MedicalProfile, Diary
 from mlmodel.models import Conversation
 from users.serializers import MedicalProfileSerializer
 import json
@@ -58,7 +58,6 @@ DYNAMIC_QUESTION_PROMPT = PromptTemplate(
     """
 )
 
-
 DYNAMIC_ASSESS_PROMPT = PromptTemplate(
    input_variables=["user_context", "assessment_context"],
     template="""
@@ -81,6 +80,18 @@ USER_REMARK_PROMPT = PromptTemplate(
     template="""
     You are a mental health professional.
     Based on the context provided, which includes the user's profile, summaries of his last 5 assessments, and summary of the conversations he had with a chatbot, develop an overall view of the user's mental state, short term and long term, for further analysis and recommendations.
+    
+    Context: {context}
+    
+    Output only the summary as a professional remark text.
+    """
+)
+
+DIARY_REMARK_PROMPT = PromptTemplate(
+    input_variables=["context"],
+    template="""
+    You are a mental health professional.
+    Based on the context provided, which includes the user's journal entries, summaries all their entries to better understand their personality.
     
     Context: {context}
     
@@ -175,6 +186,7 @@ def get_user_context_short(userprofile):
             "gender":userprofile.user.gender,
             "bio":userprofile.user.bio, 
             "preferences":userprofile.user.preferences,
+            "journal_summary": get_diary_context(userprofile.user),
             "medical_profile":{
                 "personality_score":userprofile.personality_score,
                 "conditions":userprofile.conditions,
@@ -184,6 +196,18 @@ def get_user_context_short(userprofile):
           
         }
     return user_context
+def get_diary_context(userprofile): # This has to be userprofile object
+    
+    diaries = Diary.objects.filter(user=userprofile)
+    summary_text = {}
+    for diary in diaries:
+        summary_text[diary.id] = diary.entry_text
+    
+    prompt = DIARY_REMARK_PROMPT.format(context=summary_text)
+    llm_response = llm.invoke(prompt)
+    print(f"got diary response")
+    return llm_response.content.strip()
+    
 
 def generate_assessment(medprofile):
     context = get_user_context(medprofile)
@@ -238,6 +262,7 @@ def get_user_context(userprofile): # Has to be medicalprofile object
             "gender":userprofile.user.gender,
             "bio":userprofile.user.bio, 
             "preferences":userprofile.user.preferences,
+            "journal_summary": get_diary_context(userprofile.user),
             "medical_profile":{
                 "personality_score":userprofile.personality_score,
                 "conditions":userprofile.conditions,
