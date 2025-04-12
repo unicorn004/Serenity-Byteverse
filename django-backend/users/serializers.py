@@ -8,6 +8,7 @@ User = get_user_model()
 class UserSerializer(serializers.ModelSerializer):
     streak = serializers.IntegerField(source='profile.streak', read_only=True)
     role = serializers.CharField(source='profile.role', read_only=True)
+    
     class Meta:
         model = User
         exclude = ['id']

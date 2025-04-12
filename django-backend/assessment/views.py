@@ -99,8 +99,8 @@ class GenerateQuestionsView(APIView):
         try:
             user_profile = UserProfile.objects.get(id=user_id)
             medical_profile = user_profile.medical_profile
-            user_assessment = UserAssessment.objects.get(user=user_profile, assessment=assessment_id)  # Get latest assessment
-
+            user_assessment = UserAssessment.objects.filter(user=user_profile, assessment=assessment_id).order_by('-date_taken').first()  # Get latest assessment
+            
             if not user_assessment:
                 return Response({"error": "No assessment found for the user"}, status=status.HTTP_404_NOT_FOUND)
 
