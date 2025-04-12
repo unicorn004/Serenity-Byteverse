@@ -135,7 +135,7 @@ def assign_llm_scores(responses, user):
         except ValueError:
             response.llm_score = None  # Handle invalid outputs gracefully
         response.save()
-        print("assingned LLM score")
+        print(f"assingned LLM score {response.llm_score}")
 
 def get_assessment_context(user_assessment):
     user_profile = user_assessment.user

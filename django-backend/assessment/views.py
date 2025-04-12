@@ -22,10 +22,19 @@ class UserProfileViewSet(viewsets.ModelViewSet):
 class AssessmentViewSet(viewsets.ModelViewSet):
     queryset = Assessment.objects.all()
     serializer_class = AssessmentSerializer
-
+    
 class QuestionViewSet(viewsets.ModelViewSet):
-    queryset = Question.objects.all()
     serializer_class = QuestionSerializer
+    queryset = Question.objects.all()  # Add this line
+
+    def get_queryset(self):
+        assessment_id = self.request.query_params.get("assessment")
+
+        if assessment_id:
+            return Question.objects.filter(assessment_id=assessment_id)
+
+        return Question.objects.all()
+
 
 class AnswerViewSet(viewsets.ModelViewSet):
     queryset = Answer.objects.all()

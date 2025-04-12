@@ -48,20 +48,40 @@ class UserAssessment(models.Model):
     solutions = models.TextField(null=True, blank=True)
     is_completed = models.BooleanField(default=False)
 
+    # def calculate_total_score(self):
+    #     try:
+    #         print("Calculating Total score")
+    #         total = sum(
+    #             question.responses.filter(user=self.user).first().llm_score or question.responses.filter(user=self.user).first().response_score  if question.responses else 0
+    #             for question in self.assessment.questions.all()
+    #         )
+    #         total_ques = len(self.assessment.questions.all())
+    #         print(f"sum = {sum}, total = {total_ques}")
+    #         return total // total_ques  
+        
+    #     except Exception as e:
+    #         print(f"Error in total_score_calc {e}")
+    #         return 0
     def calculate_total_score(self):
         try:
             print("Calculating Total score")
             total = sum(
-                question.responses.filter(user=self.user).first().llm_score or question.responses.filter(user=self.user).first().response_score  if question.responses else 0
+                (
+                    (question.responses.filter(user=self.user).first().llm_score or 
+                    question.responses.filter(user=self.user).first().response_score or 0)
+                    if question.responses.exists() else 0
+                )
                 for question in self.assessment.questions.all()
             )
-            total_ques = len(self.assessment.questions.all())
-            print(f"sum = {sum}, total = {total_ques}")
-            return total // total_ques  
+            total_ques = self.assessment.questions.count()  # More efficient way to get count
+            print(f"Total score = {total}, Total questions = {total_ques}")
+            
+            return total // total_ques if total_ques > 0 else 0  # Avoid division by zero
         
         except Exception as e:
-            print(f"Error in total_score_calc {e}")
+            print(f"Error in total_score_calc: {e}")
             return 0
+
 
     def determine_severity(self):
         score = self.calculate_total_score()
