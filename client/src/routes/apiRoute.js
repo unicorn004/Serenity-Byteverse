@@ -7,4 +7,5 @@ export const API_ROUTES = {
   REFRESH: (id) => `${API_BASE_URL}/api/token/refresh/`, // login to website
 
   GET_EMOTION: (id) => `${API_BASE_URL}/api/emotion/get_emotion/`, // get emotion probabilites
+  CHATBOT: (id) => `${API_BASE_URL}/chatbot/chat/` // chat with chatbot
 };

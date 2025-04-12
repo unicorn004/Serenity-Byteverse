@@ -9,6 +9,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
+import {chatWithBot} from "../../api/chatbot"
+
 interface Message {
   id: string
   content: string
@@ -29,45 +31,96 @@ export default function ChatPage() {
   const [isTyping, setIsTyping] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const handleSendMessage = () => {
-    if (!inputValue.trim()) return
+  // Auto-scroll to bottom when messages change
+  // useEffect(() => {
+  //   messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  // }, [messages])
 
-    // Add user message
+  // const handleSendMessage = () => {
+  //   if (!inputValue.trim()) return
+
+  //   // Add user message
+  //   const userMessage: Message = {
+  //     id: Date.now().toString(),
+  //     content: inputValue,
+  //     sender: "user",
+  //     timestamp: new Date(),
+  //   }
+  //   setMessages((prev) => [...prev, userMessage])
+  //   setInputValue("")
+
+  //   // Simulate bot typing
+  //   setIsTyping(true)
+  //   setTimeout(() => {
+  //     setIsTyping(false)
+
+  //     // Add bot response
+  //     const botResponses = [
+  //       "I understand how you're feeling. Would you like to talk more about that?",
+  //       "Thank you for sharing. What do you think triggered these feelings?",
+  //       "I'm here to listen. Have you tried any coping strategies that helped before?",
+  //       "That sounds challenging. Let's explore some ways to help you feel better.",
+  //       "I appreciate you opening up. Would it help to practice a quick breathing exercise together?",
+  //     ]
+
+  //     const randomResponse = botResponses[Math.floor(Math.random() * botResponses.length)]
+
+  //     const botMessage: Message = {
+  //       id: (Date.now() + 1).toString(),
+  //       content: randomResponse,
+  //       sender: "bot",
+  //       timestamp: new Date(),
+  //     }
+
+  //     setMessages((prev) => [...prev, botMessage])
+  //   }, 1500)
+  // }
+  const handleSendMessage = async () => {
+    if (!inputValue.trim()) return;
+  
+    // Add user message to chat
     const userMessage: Message = {
       id: Date.now().toString(),
       content: inputValue,
       sender: "user",
       timestamp: new Date(),
-    }
-    setMessages((prev) => [...prev, userMessage])
-    setInputValue("")
-
-    // Simulate bot typing
-    setIsTyping(true)
-    setTimeout(() => {
-      setIsTyping(false)
-
-      // Add bot response
-      const botResponses = [
-        "I understand how you're feeling. Would you like to talk more about that?",
-        "Thank you for sharing. What do you think triggered these feelings?",
-        "I'm here to listen. Have you tried any coping strategies that helped before?",
-        "That sounds challenging. Let's explore some ways to help you feel better.",
-        "I appreciate you opening up. Would it help to practice a quick breathing exercise together?",
-      ]
-
-      const randomResponse = botResponses[Math.floor(Math.random() * botResponses.length)]
-
+    };
+    setMessages((prev) => [...prev, userMessage]);
+    setInputValue("");
+  
+    // Show "Bot is typing..."
+    setIsTyping(true);
+  
+    try {
+      // Call chatbot API with the user's message
+      const response = await chatWithBot(inputValue);
+  
+      // Extract the chatbot's response from the API response
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: randomResponse,
+        content: response.response || "I'm here to help!", // Use API response or fallback
         sender: "bot",
         timestamp: new Date(),
-      }
-
-      setMessages((prev) => [...prev, botMessage])
-    }, 1500)
-  }
+      };
+  
+      // Add bot response to chat
+      setMessages((prev) => [...prev, botMessage]);
+    } catch (error) {
+      console.error("Error communicating with chatbot:", error);
+  
+      // Handle API errors gracefully
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: "Sorry, I'm having trouble responding right now.",
+        sender: "bot",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+  
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -106,7 +159,7 @@ export default function ChatPage() {
             </CardHeader>
 
             <CardContent className="p-0">
-              <div className="flex h-[60vh] flex-col">
+              <div className="flex h-[80vh] flex-col">
                 <div className="flex-1 overflow-y-auto p-4">
                   {messages.map((message) => (
                     <div
@@ -156,7 +209,7 @@ export default function ChatPage() {
                       className="min-h-[60px] resize-none"
                     />
                     <div className="flex flex-col gap-2">
-                      <Button
+                      {/* <Button
                         size="icon"
                         variant="ghost"
                         className="rounded-full text-muted-foreground hover:text-foreground"
@@ -179,7 +232,7 @@ export default function ChatPage() {
                       >
                         <Mic className="h-5 w-5" />
                         <span className="sr-only">Voice message</span>
-                      </Button>
+                      </Button> */}
                       <Button
                         size="icon"
                         onClick={handleSendMessage}
