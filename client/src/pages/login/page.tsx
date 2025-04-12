@@ -1,11 +1,14 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Lock, Mail } from "lucide-react";
+import { Eye, EyeOff, Flag, Lock, Mail } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+import {login} from "../../api/auth"
+import {useAuthContext} from "../../context/useAuthContext"
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -14,15 +17,22 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  const {saveSession} = useAuthContext();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const result = await login({ email, password }); // Call login API
+      console.log('login result = ',result);
+      saveSession(result); // Store session data in AuthContext
       setIsLoading(false);
-      navigate("/dashboard");
-    }, 1500);
+      navigate('/dashboard'); // Redirect user after successful login
+    } catch (err) {
+      console.log(err);
+    }
+
   };
 
   return (

@@ -11,23 +11,27 @@ import GroupsPage from "./pages/groups/page";
 import LoginPage from "./pages/login/page";
 import SignupPage from "./pages/signup/page";
 
+import { GlobalProvider } from "./wrapper/globalContextProvider";
+
 export default function App() {
   return (
-    <div className="flex min-h-screen flex-col">
-      <Navbar />
-      {/* Routes */}
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/crisis" element={<CrisisPage />} />
-        <Route path="/booking" element={<BookingPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/chat" element={<ChatPage />} />
-        <Route path="/emotions" element={<EmotionsPage />} />
-        <Route path="/groups" element={<GroupsPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
-      </Routes>
-      <Footer />
-    </div>
+    <GlobalProvider>
+      <div className="flex min-h-screen flex-col">
+        <Navbar />
+        {/* Routes */}
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/crisis" element={<CrisisPage />} />
+          <Route path="/booking" element={<BookingPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/chat" element={<ChatPage />} />
+          <Route path="/emotions" element={<EmotionsPage />} />
+          <Route path="/groups" element={<GroupsPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+        </Routes>
+        <Footer />
+      </div>
+    </GlobalProvider>
   );
 }
