@@ -236,7 +236,8 @@ def grade_assessment(assessment_id, user_id):
     Grade a completed assessment and update the UserAssessment record.
     """
     print("Grading Assessment...")
-    user_assessment = UserAssessment.objects.get(assessment=assessment_id, user=user_id)
+    user_assessment = UserAssessment.objects.filter(assessment=assessment_id, user=user_id).order_by('-date_taken').first()
+    print(user_assessment)
     questions = user_assessment.assessment.questions.all()
     user = user_assessment.user
     user_assessment.is_completed = True
