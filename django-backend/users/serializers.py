@@ -43,7 +43,7 @@ class LoginSerializer(serializers.Serializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = '__all__'
+        exclude = ['user']
 
 class MedicalProfileSerializer(serializers.ModelSerializer):
     class Meta:
@@ -60,8 +60,7 @@ class GoalSerializer(serializers.ModelSerializer):
         model = Goal
         exclude = ['user']
 
-
 class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification
-        fields = '__all__'
+        exclude = ['user']

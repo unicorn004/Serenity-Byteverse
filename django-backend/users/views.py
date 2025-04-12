@@ -30,18 +30,26 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         try:
-            # Fetch the UserProfile for the authenticated user
             profile = UserProfile.objects.get(user=self.request.user)
         except UserProfile.DoesNotExist:
-            # If UserProfile doesn't exist, you can create it (or return an error response)
             profile = UserProfile.objects.create(user=self.request.user)
         
-        # Check if a MedicalProfile already exists for the user
         if not MedicalProfile.objects.filter(user=profile).exists():
-            # If no MedicalProfile exists, create one
             MedicalProfile.objects.create(user=profile)
         
         return profile
+
+class UpdateUserProfileView(generics.UpdateAPIView):
+    serializer_class = UserProfileSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        try:
+            user_profile = UserProfile.objects.get(user=self.request.user)
+        except UserProfile.DoesNotExist:
+            user_profile = UserProfile.objects.create(user=self.request.user)
+        
+        return user_profile
 
 class MedicalProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = MedicalProfileSerializer
@@ -50,10 +58,8 @@ class MedicalProfileView(generics.RetrieveUpdateAPIView):
     def get_object(self):
         
         user_profile = UserProfile.objects.get(user=self.request.user)
-        # Return an error or create a profile if necessary
         medical_profile = MedicalProfile.objects.get(user=user_profile)
         return medical_profile
-
 
 class CreateMedicalProfileView(generics.CreateAPIView):
     serializer_class = MedicalProfileSerializer
@@ -61,10 +67,8 @@ class CreateMedicalProfileView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         user_profile = UserProfile.objects.get(user=self.request.user)
-        # Check if a MedicalProfile exists, and create it if not
         medical_profile, created = MedicalProfile.objects.get_or_create(user=user_profile)
         if created:
-            # If the profile was created, save it with the provided data
             serializer.save(user=user_profile)
         else:
             return Response({"detail": "Medical Profile already exists."}, status=status.HTTP_400_BAD_REQUEST)
@@ -116,13 +120,11 @@ class CreateDiaryView(generics.CreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
     def perform_create(self, serializer):
         profile = UserProfile.objects.get(user=self.request.user)
-        # Save the diary entry with the user and the provided entry_text
         serializer.save(user=profile)
 
 class CreateGoalView(generics.CreateAPIView):
     serializer_class = GoalSerializer
     permission_classes = [permissions.IsAuthenticated]
     def perform_create(self, serializer):
-        # Save the goal with the user and the provided goal_text
         profile = UserProfile.objects.get(user=self.request.user)
         serializer.save(user=profile)
