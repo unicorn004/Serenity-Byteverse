@@ -1,24 +1,27 @@
-from django.urls import path
+from django.urls import path, include
 from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework.routers import DefaultRouter
 from .views import (
-    RegisterView, LoginView, UserProfileView, 
-    MedicalProfileView, CreateMedicalProfileView, 
-    UpdateMedicalProfileView, MedicalInfoView,
-    DiaryListView, GoalListView, NotificationListView, 
+    DiaryListView, GoalListView, NotificationListView,
     CreateDiaryView, CreateGoalView
 )
+from .views import medical_profile_views, user_views
+
+router = DefaultRouter()
+
+router.register(r'medical-profile', medical_profile_views.MedicalProfileViewSet, basename='medical-profile')
+router.register(r'user-profile', user_views.UserProfileViewSet, basename='user-profile')  # Register UserProfileViewSet
 
 urlpatterns = [
-    path('register/', RegisterView.as_view(), name='register'),
-    path('login/', LoginView.as_view(), name='login'),
+
+    path('register/', user_views.RegisterView.as_view(), name='register'),
+    path('login/', user_views.LoginView.as_view(), name='login'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('profile/', UserProfileView.as_view(), name='user-profile'),
-    path('medical-profile/', MedicalProfileView.as_view(), name='medical-profile'),
-    
-    path('medical-profile/create/', CreateMedicalProfileView.as_view(), name='create-medical-profile'),
-    path('medical-profile/update/', UpdateMedicalProfileView.as_view(), name='update-medical-profile'),
-    path('medical-info/', MedicalInfoView.as_view(), name='medical-info'),
-    
+    path('profile/', user_views.UserProfileView.as_view(), name='user-profile'),
+    path('profile/update/', user_views.UpdateUserProfileView.as_view(), name='update-user-profile'),
+
+    path('api/', include(router.urls)),  # This will route both UserProfileViewSet and MedicalProfileViewSet
+
     path('diary/', DiaryListView.as_view(), name='diary-list'),
     path('goal/', GoalListView.as_view(), name='goal-list'),
     path('notifications/', NotificationListView.as_view(), name='notification-list'),
