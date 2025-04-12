@@ -4,9 +4,10 @@ const Message = require('../models/Message');
 module.exports = (server) => {
   const io = new Server(server, {
     cors: {
-      origin: 'http://localhost:5173',
+      origin: ['http://localhost:5173','http://localhost:3000'],
       methods: ['GET', 'POST'],
     },
+    transports: ['websocket', 'polling']
   });
 
   io.on('connection', (socket) => {
@@ -24,17 +25,11 @@ module.exports = (server) => {
       console.log(`User ${socket.id} left group ${groupId}`);
     });
 
-    // Send a message
     socket.on('send_message', async (data) => {
       const { groupId, sender, message } = data;
 
       try {
-        // Save the message to MongoDB
-        const newMessage = new Message({ groupId, sender, message });
-        await newMessage.save();
-
-        // Broadcast the message to all users in the group
-        io.to(groupId).emit('new_message', newMessage);
+        io.to(groupId).emit('new_message', message);
       } catch (error) {
         console.error('Failed to send message:', error);
       }

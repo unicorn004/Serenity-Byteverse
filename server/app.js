@@ -3,21 +3,25 @@ const http = require('http');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./config/database');
+const { Server } = require('socket.io');
 
 dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
+const io = new Server(server);
 
+app.set('io', io);
 // Integrate Socket.IO
 require('./config/socket')(server);
 
 // Middleware
 app.use(express.json());
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: ['http://localhost:5173','http://localhost:3000'],
   credentials: true,
-}));
+})
+);
 
 // Connect to the database
 connectDB();
@@ -32,7 +36,7 @@ const counselorRoutes = require('./routes/counselorRoutes');
 const diaryRoutes = require('./routes/diaryRoutes');
 const testRoutes = require('./routes/testRoutes');
 const goalPlannerRoutes = require('./routes/goalPlannerRoutes');
-const groupRoutes = require('./routes/groupRoutes'); // Add group routes
+const groupRoutes = require('./routes/groupRoutes');
 
 // API Routes
 app.use('/api/users', userRoutes);

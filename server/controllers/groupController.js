@@ -33,26 +33,28 @@ const createGroup = async (req, res) => {
 
 // Join a group
 const joinGroup = async (req, res) => {
-  const { groupId } = req.params;
-  const { username } = req.body;
-
-  try {
-    const group = await Group.findById(groupId);
-    if (!group) {
-      return res.status(404).json({ message: 'Group not found' });
+    const { groupId } = req.params;
+    const userId = req.body.username;
+  
+    try {
+      // 1. Find the group first
+      const group = await Group.findById(groupId);
+      if (!group) {
+        return res.status(404).json({ message: 'Group not found' });
+      }
+  
+      // 2. Check and add member
+      if (!group.members.includes(userId)) {
+        group.members.push(userId);
+        await group.save();
+      }
+  
+      res.status(200).json({ message: 'Joined group successfully' });
+    } catch (error) {
+      console.error('Failed to join group:', error);
+      res.status(500).json({ message: 'Failed to join group' });
     }
-
-    if (!group.members.includes(username)) {
-      group.members.push(username);
-      await group.save();
-    }
-
-    res.status(200).json({ message: 'Joined group successfully' });
-  } catch (error) {
-    console.error('Failed to join group:', error);
-    res.status(500).json({ message: 'Failed to join group' });
-  }
-};
+  };
 
 // Fetch messages for a group
 const fetchMessages = async (req, res) => {
@@ -69,17 +71,34 @@ const fetchMessages = async (req, res) => {
 
 // Send a message to a group
 const sendMessage = async (req, res) => {
-  const { groupId } = req.params;
-  const { sender, message } = req.body;
+    const { groupId } = req.params;
+    const { message, sender } = req.body;
+    
+    if (!sender) {
+        return res.status(400).json({ message: "Sender ID is required" });
+      }
+    
+    try {
+      const newMessage = new Message({ 
+        groupId, 
+        sender,
+        message 
+      });
+      await newMessage.save();
+      
+      const io = req.app.get('io');
+      if (!io) throw new Error('Socket.IO not initialized');
+      
+      io.to(groupId).emit('new_message', newMessage);
+      res.status(201).json(newMessage);
 
-  try {
-    const newMessage = new Message({ groupId, sender, message });
-    await newMessage.save();
-    res.status(201).json(newMessage);
-  } catch (error) {
-    console.error('Failed to send message:', error);
-    res.status(500).json({ message: 'Failed to send message' });
-  }
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      res.status(500).json({ 
+        message: 'Failed to send message',
+        error: error.message 
+    });
+    }
 };
 
 module.exports = {
