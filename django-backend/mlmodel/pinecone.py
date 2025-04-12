@@ -22,7 +22,6 @@ if not pc.has_index("serenity"):
 index = pc.Index("serenity")
 
 
-
 def upsert_to_pinecone(id, text, namespace, timestamp, metadata=None):
     """
     Upserts a vector to Pinecone with its embedding and metadata.
