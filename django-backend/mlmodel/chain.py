@@ -47,8 +47,9 @@ prompt = ChatPromptTemplate.from_messages([
 
         Additional Context:
         - User Summary: {user_summary}
-        - Recent Conversation Summary: {conversation_summary}
+      
     """),
+      # - Recent Conversation Summary: {conversation_summary} # Add this below user summary to explicityl mention conv_summary
     MessagesPlaceholder(variable_name="chat_history"),  # Placeholder for last 5 messages
     ("human", "{user_input}"),
 ])
@@ -69,14 +70,14 @@ def chat(user_input, user_profile):
     recent_messages = conversation.messages.all().order_by('-timestamp')[:5]
     formatted_chat_history = [{"role": msg.role, "content": msg.text} for msg in reversed(recent_messages)]
     # Use the conversation summary
-    conversation_summary = conversation.summary or "No prior conversation summary available."
+    # conversation_summary = conversation.summary or "No prior conversation summary available."
     # Generate a user-specific summary (e.g., based on their profile or past interactions)
     user_summary = get_user_context(user_profile.medical_profile)
 
     # Generate AI response
     response = chain.invoke({
         "user_summary": user_summary,
-        "conversation_summary": conversation_summary,
+        # "conversation_summary": conversation_summary,
         "chat_history": formatted_chat_history,
         "user_input": user_input
     })

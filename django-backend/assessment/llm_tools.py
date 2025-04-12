@@ -2,6 +2,7 @@ from langchain_groq import ChatGroq
 from langchain.prompts import PromptTemplate
 from .models import Assessment, Question, Answer, UserAssessment, UserProfile
 from users.models import UserProfile, MedicalProfile
+from mlmodel.models import Conversation
 from users.serializers import MedicalProfileSerializer
 import json
 from dotenv import load_dotenv
@@ -57,7 +58,7 @@ USER_REMARK_PROMPT = PromptTemplate(
     input_variables=["context"],
     template="""
     You are a mental health professional.
-    Based on the context provided, which includes the summaries of the user's personality and mental state based on various assessments, develop an overall view of the user's mental state, short term and long term, for further analysis and recommendations.
+    Based on the context provided, which includes the user's profile, summaries of his last 5 assessments, and summary of the conversations he had with a chatbot, develop an overall view of the user's mental state, short term and long term, for further analysis and recommendations.
     
     Context: {context}
     
@@ -140,6 +141,7 @@ def generate_llm_remark(user_assessment):
     print("Generated_LLM_Remark")
 
 def get_user_context_short(userprofile):
+    converstaion = conversation = Conversation.objects.filter(user=userprofile.user).order_by('-last_updated').first()
     user_context = {
             "name":userprofile.user.user.username,
             "age":userprofile.user.age,
@@ -152,6 +154,7 @@ def get_user_context_short(userprofile):
                 "medications":userprofile.medications,
                 "llm_remark":userprofile.llm_remark
             }
+          
         }
     return user_context
 
@@ -169,7 +172,8 @@ def get_user_context(userprofile):
             "total_score":ass.total_score if ass.total_score else "No previous score",
             "severity":ass.severity if ass.severity else "No severity"         
         }
-    
+    conversation = Conversation.objects.filter(user=userprofile.user).order_by('-last_updated').first()
+    conv_sum = conversation.summary
     # print("got assessments")
     context = {
         "user_context":{
@@ -185,8 +189,8 @@ def get_user_context(userprofile):
                 "llm_remark":userprofile.llm_remark
             }
         },
-        "assessments_context":assessment_context
-     
+        "assessments_context":assessment_context,
+        "Chatbot conversation summary":conv_sum
     }
     
     print(f"Got User Context \n context")
@@ -232,7 +236,8 @@ def grade_assessment(assessment_id, user_id):
     Grade a completed assessment and update the UserAssessment record.
     """
     print("Grading Assessment...")
-    user_assessment = UserAssessment.objects.get(assessment=assessment_id, user=user_id)
+    user_assessment = UserAssessment.objects.filter(assessment=assessment_id, user=user_id).order_by('-date_taken').first()
+    print(user_assessment)
     questions = user_assessment.assessment.questions.all()
     user = user_assessment.user
     user_assessment.is_completed = True

@@ -12,6 +12,8 @@ import LoginPage from "./pages/login/page";
 import SignupPage from "./pages/signup/page";
 
 import { GlobalProvider } from "./wrapper/globalContextProvider";
+import MentalHealthAssessment from "./pages/assessment/page";
+import MindfulnessPage from "./pages/mindfulness/page";
 
 export default function App() {
   return (
@@ -29,6 +31,9 @@ export default function App() {
           <Route path="/groups" element={<GroupsPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/assessment" element={< MentalHealthAssessment />} />
+          <Route path="/mindfulness" element={< MindfulnessPage />} />
+
         </Routes>
         <Footer />
       </div>

@@ -1,6 +1,6 @@
 import type React from "react"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef} from "react"
 import { Send, Smile, Paperclip, Mic, Bot } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
