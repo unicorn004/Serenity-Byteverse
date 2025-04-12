@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.core.validators import MinValueValidator, MaxValueValidator
+from datetime import timedelta
 
 User = get_user_model() 
 
@@ -53,7 +54,8 @@ class UserProfile(models.Model):
     recent_badge = models.CharField(
         max_length=20,
         choices=RECENT_BADGE_CHOICES,
-        default='first_step'
+        default='first_step',
+        
     )
     morning_meditation_last_performed = models.DateField(null=True, blank=True)
     morning_meditation_streak = models.PositiveIntegerField(default=0)
@@ -185,6 +187,7 @@ class UserProfile(models.Model):
             self.current_level = 'seed'
         self.save()
 
+'''----------------USER PROFILE ENDS HERE -  -- '''
 class MedicalProfile(models.Model):
     user = models.OneToOneField(UserProfile, on_delete=models.CASCADE, related_name='medical_profile')
     conditions = models.TextField(blank=True, null=True)

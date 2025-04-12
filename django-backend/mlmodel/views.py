@@ -28,3 +28,5 @@ class ChatAPIView(APIView):
 
         # Return the AI response
         return Response({"response": ai_response}, status=200)
+    
+
