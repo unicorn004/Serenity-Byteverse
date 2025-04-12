@@ -1,7 +1,7 @@
 from django.db import models
 
 # Create your models here.
-from django.contrib.auth.models import User  # Default User model
+from users.models import User  # Default User model
 from django.db import models
 from django.db.models import JSONField
 from django.utils import timezone
@@ -19,7 +19,7 @@ class UserProfile(models.Model):
     preferences = JSONField(default=dict)  # e.g., {"preferred_language": "en"}
     mood_score = models.FloatField(null=True, blank=True)  # 0-100 grayscale
     embedding = JSONField(null=True, blank=True)  # Vector for recommendations
-    llm_remark = bio = models.TextField(blank=True, null=True) 
+    llm_remark = models.TextField(blank=True, null=True)
 
 class Assessment(models.Model):
     name = models.CharField(max_length=50, unique=True)  # e.g., "PHQ-9", "GAD-7"

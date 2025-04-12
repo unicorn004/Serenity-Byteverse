@@ -1,3 +1,7 @@
-from django.shortcuts import render
+from rest_framework import generics
+from .models import TherapySession
+from .serializers import TherapySessionSerializer
 
-# Create your views here.
+class TherapySessionListView(generics.ListCreateAPIView):
+    queryset = TherapySession.objects.all()
+    serializer_class = TherapySessionSerializer
