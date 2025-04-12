@@ -31,7 +31,7 @@ export default function Navbar() {
               <path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2" />
               <path d="m6 17 3.13-5.78c.53-.97.43-2.22-.26-3.07A4 4 0 0 1 22 7a3.98 3.98 0 0 1-3.57 3.93L13 17" />
             </svg>
-            MindWell
+            Serenity
           </Link>
 
           {/* Desktop Navigation */}
@@ -66,12 +66,26 @@ export default function Navbar() {
             >
               Book Therapist
             </Link>
+
+            <Link
+              to="/assessment"
+              className="text-md font-large text-gray-600 hover:text-indigo-600"
+            >
+              Assessment
+            </Link>
+            <Link
+              to="/mindfulness"
+              className="text-md font-large text-gray-600 hover:text-indigo-600"
+            >
+              Practice
+            </Link>
             <Link
               to="/crisis"
               className="text-md font-large text-gray-600 hover:text-indigo-600"
             >
               Crisis Help
             </Link>
+
           </nav>
 
           <div className="flex items-center gap-4">
