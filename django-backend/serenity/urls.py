@@ -23,4 +23,5 @@ urlpatterns = [
     path('forum/', include('forum.urls')),
     path('assessment/', include('assessment.urls')),
     path('doctor/', include('doctor.urls')),
+    path('api/emotion/', include('emotion_detector.urls')),
 ]

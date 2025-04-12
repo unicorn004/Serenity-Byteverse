@@ -48,6 +48,7 @@ INSTALLED_APPS = [
      'chat',
      'assessment',
      'doctor',
+     'emotion_detector',
      'forum',
      'users',
      'corsheaders',
