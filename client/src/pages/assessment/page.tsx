@@ -303,15 +303,15 @@ const MentalHealthAssessment = () => {
     if (currentQuestionIndex < questions.length - 1) {
       postAnswer(
         questions[currentQuestionIndex].id,
-        answers[currentQuestionIndex]
+        answers[questions[currentQuestionIndex].id]
       ); // Background API call
-
+      console.log("answers = ",answers, "text = ", answers[questions[currentQuestionIndex].id]);
       setCurrentQuestionIndex((prevIndex) => prevIndex + 1);
     } else {
       // Ensure postAnswer completes before calling gradeAssessment
       postAnswer(
         questions[currentQuestionIndex].id,
-        answers[currentQuestionIndex]
+        answers[questions[currentQuestionIndex].id]
       )
         .then(() => gradeAssessment(selectedAssessment.id)) // Grade only after postAnswer is done
         .catch((error) => console.error("Error grading assessment:", error));

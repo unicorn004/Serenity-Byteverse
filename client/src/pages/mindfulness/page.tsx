@@ -18,6 +18,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import {createDiary} from "../../api/diary"
 
 // Create a simple toast implementation
 const useToast = () => {
@@ -146,10 +147,15 @@ const MindfulnessPage: React.FC = () => {
     return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
   };
 // ----------------------------------edit here to post diary data to backend-------------------------------------------------------------->
-  const markAsCompleted = () => {
-    if (journalEntry.length >0){
-        console.log("sending jornal data to backend");
-        
+  const markAsCompleted = async () => {
+    if (journalEntry.length > 0){
+        try{
+          const response = await createDiary(journalEntry);
+          console.log("journalEntry response = ",response)
+        }
+        catch(err){
+          console.log("Error sending diary content to backend",err);
+        }
     }
 // --------------------------------------edit above------------------------------------------------------------------------------------>
     const today = new Date();

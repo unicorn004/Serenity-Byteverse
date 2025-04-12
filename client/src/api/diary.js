@@ -59,49 +59,9 @@ const apiCall = async (
   }
 };
 
-// Get all assessments
-export const getAssessments = async () => {
-  return await apiCall(API_ROUTES.GET_ASSESSEMENTS(), "GET");
-};
-
 // Create user-assessment pair
-export const postUserAssessment = async (assessmentId) => { 
-  const user = getUserFromCookie();
-  return await apiCall(API_ROUTES.POST_USER_ASSESSEMENT(), "POST", {
-    user: user.profile_id,
-    assessment: assessmentId,
-  });
-};
-
-// Get all questions for an assessment
-export const getQuestions = async (assessmentId) => {
-  return await apiCall(API_ROUTES.GET_QUESTIONS(assessmentId), "GET");
-};
-
-// Post user's answer for a question
-export const postAnswer = async (questionId, answer) => {
-  const user = getUserFromCookie();
-  console.log('answer = ',answer);
-  return await apiCall(API_ROUTES.POST_ANSWER(), "POST", {
-    user: user.profile_id,
-    question: questionId,
-    response_text: answer,
-  });
-};
-
-// Grade the assessment after the last question
-export const gradeAssessment = async (assessmentId) => {
-  const user = getUserFromCookie();
-  return await apiCall(API_ROUTES.GRADE_ASSESSMENT(), "POST", {
-    user_id: user.profile_id,
-    assessment_id: assessmentId,
-  });
-};
-
-// Assess user across top 5 assessments and update profile
-export const assessUser = async () => {
-  const user = getUserFromCookie();
-  return await apiCall(API_ROUTES.ASSESS_USER(), "POST", {
-    user: user.profile_id,
+export const createDiary = async (content) => { 
+  return await apiCall(API_ROUTES.CREATE_DIARY(), "POST", {
+    entry_text : content
   });
 };
