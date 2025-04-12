@@ -1,6 +1,6 @@
 from langchain_groq import ChatGroq
 from langchain.prompts import PromptTemplate
-from .models import Assessment, Question, Response, UserAssessment, UserProfile
+from .models import Assessment, Question, Answer, UserAssessment, UserProfile
 import json
 
 # Initialize Groq LLM
@@ -71,7 +71,7 @@ def generate_llm_remark(user_assessment):
     Generate a personalized remark for the user based on their assessment responses.
     """
     user_profile = user_assessment.user.profile
-    responses = user_assessment.responses.all()
+    responses = user_assessment.answers.all()
     context = {
         "user_profile": json.dumps({
             "age": user_profile.age,
@@ -105,7 +105,7 @@ def grade_assessment(assessment_id, user_id):
     Grade a completed assessment and update the UserAssessment record.
     """
     user_assessment = UserAssessment.objects.get(assessment_id=assessment_id, user_id=user_id)
-    responses = user_assessment.responses.all()
+    responses = user_assessment.amswers.all()
     
     # Step 1: Assign LLM Scores
     assign_llm_scores(responses)

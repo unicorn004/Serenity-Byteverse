@@ -2,14 +2,18 @@ from django.shortcuts import render
 
 # Create your views here.
 from rest_framework import viewsets
-from .models import UserProfile, Assessment, Question, Response, UserAssessment
+from .models import UserProfile, Assessment, Question,Answer, UserAssessment
 from .serializers import (
     UserProfileSerializer,
     AssessmentSerializer,
     QuestionSerializer,
-    ResponseSerializer,
     UserAssessmentSerializer,
+    AnswerSerializer
 )
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from .llm_tools import grade_assessment
 
 class UserProfileViewSet(viewsets.ModelViewSet):
     queryset = UserProfile.objects.all()
@@ -23,20 +27,14 @@ class QuestionViewSet(viewsets.ModelViewSet):
     queryset = Question.objects.all()
     serializer_class = QuestionSerializer
 
-class ResponseViewSet(viewsets.ModelViewSet):
-    queryset = Response.objects.all()
-    serializer_class = ResponseSerializer
+class AnswerViewSet(viewsets.ModelViewSet):
+    queryset = Answer.objects.all()
+    serializer_class = AnswerSerializer
 
 class UserAssessmentViewSet(viewsets.ModelViewSet):
     queryset = UserAssessment.objects.all()
     serializer_class = UserAssessmentSerializer
 
-
-
-
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from .llm_tools import grade_assessment
 
 class GradeAssessmentView(APIView):
     def post(self, request, *args, **kwargs):

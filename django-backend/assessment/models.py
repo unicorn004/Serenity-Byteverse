@@ -27,7 +27,7 @@ class Question(models.Model):
     def __str__(self):
         return f"{self.assessment.name} - Q{self.order}: {self.text}"
 
-class Response(models.Model):
+class Answer(models.Model):
     user = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name="responses")
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
     response_text = models.TextField(blank=True, null=True)

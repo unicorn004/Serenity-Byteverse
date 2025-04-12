@@ -3,7 +3,7 @@ from .models import (
     UserProfile,
     Assessment,
     Question,
-    Response,
+    Answer,
     UserAssessment,
 )
 
@@ -50,9 +50,9 @@ class QuestionSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
 # Serializer for Response
-class ResponseSerializer(serializers.ModelSerializer):
+class AnswerSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Response
+        model = Answer
         fields = [
             "id",
             "user",  # ForeignKey to User
