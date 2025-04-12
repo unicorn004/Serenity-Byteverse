@@ -26,8 +26,7 @@ const apiCall = async (
       const token = getTokenFromCookie();
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
-      }
-      else{
+      } else {
         console.log("Error Access token not found");
         return;
       }
@@ -44,7 +43,7 @@ const apiCall = async (
     }
 
     const response = await fetch(endpoint, options);
-    console.log(`Response to ${endpoint} is ${response}`)
+    console.log(`Response to ${endpoint} is ${response}`);
 
     // Check for errors
     if (!response.ok) {
@@ -65,7 +64,7 @@ export const getAssessments = async () => {
 };
 
 // Create user-assessment pair
-export const postUserAssessment = async (assessmentId) => { 
+export const postUserAssessment = async (assessmentId) => {
   const user = getUserFromCookie();
   return await apiCall(API_ROUTES.POST_USER_ASSESSEMENT(), "POST", {
     user: user.profile_id,
@@ -81,7 +80,7 @@ export const getQuestions = async (assessmentId) => {
 // Post user's answer for a question
 export const postAnswer = async (questionId, answer) => {
   const user = getUserFromCookie();
-  console.log('answer = ',answer);
+  console.log("answer = ", answer);
   return await apiCall(API_ROUTES.POST_ANSWER(), "POST", {
     user: user.profile_id,
     question: questionId,
@@ -104,4 +103,21 @@ export const assessUser = async () => {
   return await apiCall(API_ROUTES.ASSESS_USER(), "POST", {
     user: user.profile_id,
   });
+};
+
+// Get the aggregate assessment done for user
+export const getAssessmentResult = async () => {
+  return await apiCall(
+    API_ROUTES.GET_ASSESSMENT_RESULT(),
+    "GET"
+  );
+};
+
+
+// Get the aggregate assessment done for user
+export const getMedicalAssessmentResult = async (medicalAssessmentId) => {
+  return await apiCall(
+    API_ROUTES.GET_MEDICAL_PROFILE(medicalAssessmentId),
+    "GET"
+  );
 };

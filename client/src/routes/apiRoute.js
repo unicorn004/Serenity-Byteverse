@@ -15,6 +15,8 @@ export const API_ROUTES = {
   POST_ANSWER: (id) => `${API_BASE_URL}/assessment/responses/`, // post the user response for a question in assessment
   GRADE_ASSESSMENT: (id) => `${API_BASE_URL}/assessment/grade/`, // post this after the last question is answered
   ASSESS_USER: (id) => `${API_BASE_URL}/assessment/assess_medical/`, // review user accross top 5 assessments // updates the profile
+  GET_ASSESSMENT_RESULT: (userAssessmentId) => `${API_BASE_URL}/assessment/user_assessments/`, // without userassessment id it gets all assessments
+  GET_MEDICAL_PROFILE: (medicalAssessmentId) => `${API_BASE_URL}/api/medical-profile/${medicalAssessmentId}/`, // here goes medical assessment id
 
   CREATE_DIARY: (id) => `${API_BASE_URL}/api/diary/create/`, // post content of diary to db 
 };

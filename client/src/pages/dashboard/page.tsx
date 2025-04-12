@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import MoodChart from "@/components/dashboard/mood-chart"
 import ChallengeCard from "@/components/dashboard/challenge-card"
 
+
 export default function DashboardPage() {
   const [currentDate, setCurrentDate] = useState(new Date())
 
