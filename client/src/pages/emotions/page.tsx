@@ -21,6 +21,11 @@ import {
 } from "@/components/ui/tooltip";
 
 import { get_emotion } from "../../api/emotion";
+import Groq from "groq-sdk";
+
+const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
+const groq = new Groq({ apiKey: GROQ_API_KEY, dangerouslyAllowBrowser: true }); // Allow usage in the browser
+// console.log("GROQ API KEY:", import.meta.env.VITE_GROQ_API_KEY);
 
 type Emotion =
   | "happy"
@@ -49,24 +54,6 @@ const emotionColors = {
   fearful: "#8B0000", // Dark Red
 };
 
-const messages = [
-  "Keep smiling! 😊",
-  "It's okay to feel this way. 💙",
-  "Take deep breaths and relax. 🌿",
-  "Stay strong, you're doing great! 💪",
-  "Life is full of surprises! 🎉",
-  "You got this! Keep going. 🚀",
-];
-
-const suggestions = [
-  ["Listen to music", "Go for a walk", "Talk to a friend"],
-  ["Watch a comedy movie", "Read a book", "Try meditation"],
-  ["Take deep breaths", "Exercise", "Write down your thoughts"],
-  ["Practice mindfulness", "Take a break", "Drink some water"],
-  ["Share your happiness", "Capture the moment", "Celebrate wins"],
-  ["Face your fears", "Talk to someone", "Practice self-care"],
-];
-
 export default function EmotionsPage() {
   const [currentEmotion, setCurrentEmotion] = useState<Emotion>(null);
   const [emotionData, setEmotionData] = useState<EmotionData | null>(null);
@@ -74,81 +61,6 @@ export default function EmotionsPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  // const emotions: Record<string, EmotionData> = {
-  //   happy: {
-  //     emotion: "happy",
-  //     confidence: 87,
-  //     color: "bg-green-500",
-  //     message: "You're feeling happy! That's wonderful to see.",
-  //     suggestions: [
-  //       "Celebrate this positive mood by doing something you enjoy",
-  //       "Share your happiness with someone else through a kind gesture",
-  //       "Journal about what's contributing to your happiness",
-  //       "Use this energy for a creative project you've been wanting to start",
-  //     ],
-  //   },
-  //   sad: {
-  //     emotion: "sad",
-  //     confidence: 76,
-  //     color: "bg-blue-500",
-  //     message: "You seem to be feeling sad. It's okay to feel this way.",
-  //     suggestions: [
-  //       "Practice self-compassion and be gentle with yourself",
-  //       "Try a brief mindfulness meditation to acknowledge your feelings",
-  //       "Reach out to a trusted friend or family member",
-  //       "Engage in a calming activity like reading or listening to music",
-  //     ],
-  //   },
-  //   angry: {
-  //     emotion: "angry",
-  //     confidence: 82,
-  //     color: "bg-red-500",
-  //     message: "You appear to be feeling angry or frustrated.",
-  //     suggestions: [
-  //       "Take a few deep breaths to help calm your nervous system",
-  //       "Try physical activity to release tension, like a brisk walk",
-  //       "Write down what's bothering you to gain perspective",
-  //       "Consider if there's a constructive way to address what's upsetting you",
-  //     ],
-  //   },
-  //   neutral: {
-  //     emotion: "neutral",
-  //     confidence: 91,
-  //     color: "bg-gray-500",
-  //     message: "You seem to be in a neutral state right now.",
-  //     suggestions: [
-  //       "This is a good time for planning or decision-making",
-  //       "Consider checking in with yourself about how you're really feeling",
-  //       "Try a brief gratitude practice to boost positive emotions",
-  //       "Use this balanced state for a mindfulness practice",
-  //     ],
-  //   },
-  //   surprised: {
-  //     emotion: "surprised",
-  //     confidence: 68,
-  //     color: "bg-purple-500",
-  //     message: "You look surprised! Something unexpected happened?",
-  //     suggestions: [
-  //       "Take a moment to process what surprised you",
-  //       "Consider whether this surprise is positive, negative, or neutral",
-  //       "Use this alertness for creative thinking or problem-solving",
-  //       "If the surprise was stressful, try some deep breathing",
-  //     ],
-  //   },
-  //   fearful: {
-  //     emotion: "fearful",
-  //     confidence: 73,
-  //     color: "bg-yellow-500",
-  //     message: "You seem to be experiencing fear or anxiety.",
-  //     suggestions: [
-  //       "Try the 5-4-3-2-1 grounding technique (notice 5 things you see, 4 things you feel, etc.)",
-  //       "Focus on your breathing - try breathing in for 4 counts, hold for 2, out for 6",
-  //       "Remind yourself that you are safe right now",
-  //       "Consider what specific fear is present and if there are steps you can take",
-  //     ],
-  //   },
-  // };
 
   const startCamera = async () => {
     if (!videoRef.current) {
@@ -182,6 +94,57 @@ export default function EmotionsPage() {
       console.log("Camera stopped successfully");
     } else {
       console.warn("Camera is not active or already stopped");
+    }
+  };
+
+  const fetchGroqMessage = async (emotion, confidence) => {
+    try {
+      const response = await groq.chat.completions.create({
+        model: "llama3-70b-8192", // ✅ Adjust model if needed
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are an AI that provides helpful messages and suggestions based on user emotions. Respond in JSON format.",
+          },
+          {
+            role: "user",
+            content: `The user is feeling "${emotion}" with a confidence score of ${confidence}. 
+                    
+                    - Provide a **short motivational message**.
+                    - Give **3 helpful suggestions** that the user can follow.
+                    
+                    Respond strictly in JSON format:
+                    {
+                        "message": "Your motivational message here",
+                        "suggestions": ["Suggestion 1", "Suggestion 2", "Suggestion 3"]
+                    }`,
+          },
+        ],
+        max_tokens: 256, // ✅ Increased to avoid cut-off responses
+        temperature: 0.7, // ✅ Adjusted for more creativity
+      });
+
+      console.log("Groq response = ", response);
+
+      // Extract structured response
+      const content = response.choices?.[0]?.message?.content || "{}";
+      const parsedResponse = JSON.parse(content);
+
+      console.log("message = ", parsedResponse.message);
+      console.log("suggestions = ", parsedResponse.suggestions);
+
+      return parsedResponse;
+    } catch (error) {
+      console.error("Groq API Error:", error);
+      return {
+        message: "Stay strong, you got this! 💪",
+        suggestions: [
+          "Take a deep breath and focus on the present moment.",
+          "Engage in an activity that makes you happy.",
+          "Reach out to someone for support or a friendly chat.",
+        ],
+      };
     }
   };
 
@@ -232,16 +195,24 @@ export default function EmotionsPage() {
             { emotion: "", confidence: 0 }
           );
 
-          const randomIndex = Math.floor(Math.random() * messages.length);
+          //const randomIndex = Math.floor(Math.random() * messages.length);
+
+          const { emotion, confidence } = highestEmotion;
+
+          // Get AI-generated message & suggestions
+          const { message, suggestions } = await fetchGroqMessage(
+            emotion,
+            confidence
+          );
 
           const edata = {
-            emotion: highestEmotion.emotion,
-            confidence: highestEmotion.confidence,
-            color: emotionColors[highestEmotion.emotion] || "#000000", // Default to black if not found
-            message: messages[randomIndex],
-            suggestions: suggestions[randomIndex],
+            emotion: emotion,
+            confidence: confidence,
+            color: emotionColors[emotion] || "#000000", // Default to black if not found
+            message: message,
+            suggestions: suggestions,
           };
-    
+
           // Update state
           setCurrentEmotion(edata.emotion);
           setEmotionData(edata);
@@ -390,7 +361,14 @@ export default function EmotionsPage() {
 
                   <div>
                     <h4 className="mb-2 font-medium">Emotion Intensity</h4>
-                    <Progress value={emotionData?.confidence ? emotionData.confidence*100:emotionData?.confidence} className="h-2" />
+                    <Progress
+                      value={
+                        emotionData?.confidence
+                          ? emotionData.confidence * 100
+                          : emotionData?.confidence
+                      }
+                      className="h-2"
+                    />
                   </div>
 
                   <div>
@@ -487,6 +465,8 @@ function getEmotionIcon(emotion: Emotion) {
       return "😲";
     case "fear":
       return "😨";
+    case "disgust":
+      return "🤮";
     default:
       return "❓";
   }
@@ -504,7 +484,7 @@ function getReadingMaterial(emotion: Emotion) {
       return '"Mindfulness in Everyday Life" - finding meaning in ordinary moments';
     case "surprised":
       return '"Adapting to Unexpected Change" - turning surprises into opportunities';
-    case "fearful":
+    case "fear":
       return '"Understanding Your Fear Response" - techniques to manage anxiety';
     default:
       return '"Emotional Intelligence" - understanding your emotional landscape';
@@ -523,7 +503,7 @@ function getExercises(emotion: Emotion) {
       return "Body scan meditation, sensory awareness practice, values reflection";
     case "surprised":
       return "Curiosity journaling, flexible thinking exercises, adaptation planning";
-    case "fearful":
+    case "fear":
       return "Grounding techniques, exposure exercises, worry scheduling";
     default:
       return "Emotional awareness check-in, breathing exercises, mindful walking";
