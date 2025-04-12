@@ -145,8 +145,13 @@ const MindfulnessPage: React.FC = () => {
     const secs = seconds % 60;
     return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
   };
-
+// ----------------------------------edit here to post diary data to backend-------------------------------------------------------------->
   const markAsCompleted = () => {
+    if (journalEntry.length >0){
+        console.log("sending jornal data to backend");
+        
+    }
+// --------------------------------------edit above------------------------------------------------------------------------------------>
     const today = new Date();
     const todayString = today.toISOString();
 
