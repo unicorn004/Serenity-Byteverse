@@ -1,11 +1,12 @@
 from langchain_groq import ChatGroq
 from langchain.prompts import PromptTemplate
 from .models import Assessment, Question, Answer, UserAssessment, UserProfile
+from users.models import UserProfile, MedicalProfile
+from users.serializers import MedicalProfileSerializer
 import json
 from dotenv import load_dotenv
 load_dotenv()
 import os
-
 
 
 # Initialize Groq LLM
@@ -41,13 +42,14 @@ REMARK_PROMPT = PromptTemplate(
 )
 
 DYNAMIC_QUESTION_PROMPT = PromptTemplate(
-    input_variables=["context"],
+   input_variables=["user_context", "assessment_context"],
     template="""
-    Based on the context provided, suggest the next relevant question for the user.
+    Based on the provided context, generate 5 relevant follow-up questions for the user. 
+
+    User Context: {user_context}
+    Assessment Context: {assessment_context}
     
-    Context: {context}
-    
-    Output only the question as text.
+    Output only the questions as a JSON list. Without any normal text as a precursor etc.. Pure parsable JSON Questions only.
     """
 )
 
@@ -63,17 +65,33 @@ USER_REMARK_PROMPT = PromptTemplate(
     """
 )
 
+USER_MEDICAL_PROMPT = PromptTemplate(
+    input_variables=["context"],
+    template="""
+    You are a medical AI assistant. Analyze the given user data and generate structured medical insights.
+
+    Context: {context}
+
+    Provide the response as a JSON object with the following keys:
+    - "conditions": A list of medical conditions the user might have.
+    - "medications": List of medications the user might be taking or that you suggest if that's null previously.
+    - "personality_score": A numerical score (0-100) representing personality stability.
+    - "remark": A short, professional summary of the user's health.
+
+    Respond with a valid JSON format only. Try not to leave any field null or empty, fill in valid format mentioned
+    """
+)
 # Function to Assign LLM Scores
-def assign_llm_scores(responses):
+def assign_llm_scores(responses, user):
     """
     Assign subjective scores to user responses using the LLM.
     """
     for question in responses:
-        response = question.response
+        response = question.responses.filter(user=user).first()
         scoring_context = {
             "question": question.text,
             "response": response.response_text or str(response.response_score),
-            "guidelines": question.scoring_guidelines or "Score based on severity (0-3).",
+            "guidelines": question.scoring_guidelines or "Score based on severity (0-10).",
         }
         prompt = SCORING_PROMPT.format(**scoring_context)
         llm_response = llm.invoke(prompt)
@@ -82,6 +100,7 @@ def assign_llm_scores(responses):
         except ValueError:
             response.llm_score = None  # Handle invalid outputs gracefully
         response.save()
+        print("assingned LLM score")
 
 def get_assessment_context(user_assessment):
     user_profile = user_assessment.user
@@ -94,7 +113,7 @@ def get_assessment_context(user_assessment):
             # "mood_score": user_profile.mood_score,
         }),
         "responses": json.dumps({
-            resp.text: resp.response.response_text or str(resp.response.response_score)
+            resp.text: resp.responses.filter(user=user_profile).first().response_text or str(resp.response.filter(user=user_profile).first().response_score)
             for resp in questions
         }),
         "assessment": user_assessment.assessment.name,
@@ -105,6 +124,7 @@ def get_assessment_context(user_assessment):
         
         },
     }
+    print("got assessment context")
     return context
 
 # Function to Generate Subjective Remarks
@@ -117,6 +137,23 @@ def generate_llm_remark(user_assessment):
     llm_response = llm.invoke(prompt)
     user_assessment.llm_remark = llm_response.content.strip()
     user_assessment.save()
+    print("Generated_LLM_Remark")
+
+def get_user_context_short(userprofile):
+    user_context = {
+            "name":userprofile.user.user.username,
+            "age":userprofile.user.age,
+            "gender":userprofile.user.gender,
+            "bio":userprofile.user.bio, 
+            "preferences":userprofile.user.preferences,
+            "medical_profile":{
+                "personality_score":userprofile.personality_score,
+                "conditions":userprofile.conditions,
+                "medications":userprofile.medications,
+                "llm_remark":userprofile.llm_remark
+            }
+        }
+    return user_context
 
 def get_user_context(userprofile):
     assessments = userprofile.user.assessments.all()
@@ -127,12 +164,13 @@ def get_user_context(userprofile):
 
         assessment_context[ass.assessment.name] =  {
             "assesssment_description":ass.assessment.description,
-            "assessment_severity_mapping":ass.assessment_severity_mapping, 
+            "assessment_severity_mapping":ass.assessment.severity_mapping, 
             "remark":ass.llm_remark if ass.llm_remark else "No Previous Remark",
             "total_score":ass.total_score if ass.total_score else "No previous score",
             "severity":ass.severity if ass.severity else "No severity"         
         }
     
+    # print("got assessments")
     context = {
         "user_context":{
             "name":userprofile.user.user.username,
@@ -150,46 +188,102 @@ def get_user_context(userprofile):
         "assessments_context":assessment_context
      
     }
+    
+    print(f"Got User Context \n context")
     return context
-
 
 def generate_user_remark(userprofile): # THis rather has to be a medicalProfile Object (in users.models), just mentioned userprofile in the flow.
     context = get_user_context(userprofile)
-    prompt = USER_REMARK_PROMPT.format(**context)
+    prompt = USER_REMARK_PROMPT.format(context=context)
     llm_response = llm.invoke(prompt)
     userprofile.llm_remark = llm_response.content.strip()
+    print("Generated User Remark")
+    userprofile.save()
 
 # Function to Dynamically Suggest Questions
-def suggest_next_question(user_assessment, medicalprofile):
+def suggest_next_questions(user_assessment, medicalprofile):
     """
-    Suggest the next relevant question based on the current context.
+    Generate 5 relevant follow-up questions based on user and assessment context.
     """
     user_context = get_user_context(medicalprofile)["user_context"]
-    context = get_assessment_context(user_assessment)
-    prompt = DYNAMIC_QUESTION_PROMPT.format(context=context)
-    llm_response = llm.invoke(prompt)
-    return llm_response.content.strip()
+    ass_context = get_assessment_context(user_assessment)
 
+    
+    prompt = DYNAMIC_QUESTION_PROMPT.format(
+        user_context=user_context,
+        assessment_context=ass_context
+    )
+
+    llm_response = llm.invoke(prompt)
+    print(f"got response")
+
+    # Ensure response is properly formatted as a list
+    try:
+        questions = json.loads(llm_response.content.strip())  # Convert JSON string to Python list
+        if not isinstance(questions, list):  # Ensure it's a list
+            raise ValueError("Invalid LLM response format")
+    except json.JSONDecodeError:
+        questions = ["Generated invalid json."]  
+
+    return questions
 # Tool to Grade Assessments
 def grade_assessment(assessment_id, user_id):
     """
     Grade a completed assessment and update the UserAssessment record.
     """
-    user_assessment = UserAssessment.objects.get(assessment__id=assessment_id, user_id=user_id)
+    print("Grading Assessment...")
+    user_assessment = UserAssessment.objects.get(assessment=assessment_id, user=user_id)
     questions = user_assessment.assessment.questions.all()
+    user = user_assessment.user
+    user_assessment.is_completed = True
     
     
     # Step 1: Assign LLM Scores
-    assign_llm_scores(questions)
+    assign_llm_scores(questions, user)
     
     # Step 2: Calculate Total Score and Severity
-    user_assessment.calculate_total_score()
-    user_assessment.determine_severity()
+    # user_assessment.calculate_total_score() # ALready calculated within severity function
+    user_assessment.severity = user_assessment.determine_severity()
     
     # Step 3: Generate Subjective Remark
     generate_llm_remark(user_assessment)
     
     # Save the updated UserAssessment
     user_assessment.save()
+    print("Grading Complemte")
+def assess_user(user_id):
+    user_profile = UserProfile.objects.get(id = user_id)
+    medical_profile = user_profile.medical_profile
+    generate_user_remark(medical_profile)
+    #medical_profile.llm_remark = remark
+    #print(f"user = {medical_profile.user},id =  {medical_profile.id}, remark{medical_profile.llm_remark}")
+   
+    print(f"user = {medical_profile.user},id =  {medical_profile.id}, remark{medical_profile.llm_remark}")
+    print("Users Medical Profile updated with LLM Remarks")
 
-# Example Usage
+def generate_medical_profile(userprofile):
+    context = get_user_context(userprofile)  # Assuming this retrieves user data correctly
+    prompt = USER_MEDICAL_PROMPT.format(context=context)  # Define a structured prompt
+    llm_response = llm.invoke(prompt)  
+
+    print(f"LLM_response = {llm_response}")
+
+    try:
+        response_data = json.loads(llm_response.content.strip())  # Convert to dict
+        
+    except json.JSONDecodeError:
+        print("Error: LLM response not in JSON format")
+        return None  
+
+    userprofile.conditions = response_data.get("conditions", "")
+    userprofile.medications = response_data.get("medications", "")
+    userprofile.personality_score = response_data.get("personality_score", None)
+    userprofile.llm_remark = response_data.get("remark", "")
+
+    userprofile.save()
+    print("Medical profile updated successfully!")
+
+    return response_data  # For debugging
+
+
+

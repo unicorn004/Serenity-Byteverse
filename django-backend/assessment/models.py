@@ -29,7 +29,7 @@ class Question(models.Model):
 
 class Answer(models.Model):
     user = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name="users")
-    question = models.OneToOneField(Question, on_delete=models.CASCADE, related_name="response")
+    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name="responses")
     response_text = models.TextField(blank=True, null=True)
     response_score = models.IntegerField(blank=True, null=True)  # Objective score
     llm_score = models.FloatField(blank=True, null=True)  # Subjective LLM score
@@ -48,24 +48,37 @@ class UserAssessment(models.Model):
     is_completed = models.BooleanField(default=False)
 
     def calculate_total_score(self):
-        return sum(
-            question.response.llm_score or question.response.response_score 
-            for question in self.assessment.questions.all()
-        )
+        try:
+            print("Calculating Total score")
+            total = sum(
+                question.responses.filter(user=self.user).first().llm_score or question.responses.filter(user=self.user).first().response_score  if question.responses else 0
+                for question in self.assessment.questions.all()
+            )
+            total_ques = len(self.assessment.questions.all())
+            print(f"sum = {sum}, total = {total_ques}")
+            return total // total_ques  
+        
+        except Exception as e:
+            print(f"Error in total_score_calc {e}")
+            return 0
 
     def determine_severity(self):
         score = self.calculate_total_score()
+        self.total_score = score
         for range_str, label in self.assessment.severity_mapping.items():
             lower, upper = map(float, range_str.split("-"))
             if lower <= score <= upper:
+                print("Calculated Severity")
                 return label
+        print("Calculated Severity")
         return "unknown"
 
     def save(self, *args, **kwargs):
-        if not self.is_completed:
-            self.total_score = self.calculate_total_score()
-            self.severity = self.determine_severity()
-            self.is_completed = True
+        #  if not self.is_completed:
+        #     self.total_score = self.calculate_total_score()
+        #     self.severity = self.determine_severity()
+        #     self.is_completed = True
+            
         super().save(*args, **kwargs)
 
     def __str__(self):
