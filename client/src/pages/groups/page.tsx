@@ -1,320 +1,738 @@
-import type React from "react"
-import { useState, useRef, useEffect } from "react"
-import { Send, Smile, Paperclip, Mic, Bot } from "lucide-react"
-import { io } from "socket.io-client"
+import { useState, useEffect, useRef } from "react";
+import { Search, Users, Send, Plus, Lock, Shield, Calendar, Clock } from "lucide-react";
+import useSWR, { mutate } from "swr";
+import axios from "axios";
+import { Socket } from "socket.io-client";
+import io from "socket.io-client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Toaster, toast } from "sonner";
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Textarea } from "@/components/ui/textarea"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-
-interface Message {
-  id: string
-  content: string
-  sender: "user" | "bot"
-  timestamp: Date
+interface Forum {
+  _id: number; // Changed from id to _id
+  name: string;
+  description: string;
+  category: string;
+  privacy: "public" | "private";
+  members_count: number;
+  admin: {
+    user: {
+      username: string;
+      email: string;
+    };
+  };
+  users: Array<{
+    user: {
+      id: string;
+      username: string;
+      email: string;
+      role: string;
+    };
+  }>;
+  created_at: string;
 }
 
-export default function ChatPage() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      content: "Hello! I'm your mental wellness assistant. How are you feeling today?",
-      sender: "bot",
-      timestamp: new Date(),
-    },
-  ])
-  const [inputValue, setInputValue] = useState("")
-  const [isTyping, setIsTyping] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const socketRef = useRef<any>(null)
-  
-  // Unique identifier for this user - in a real app, this would come from authentication
-  const userId = useRef(Date.now().toString())
-  // Group ID for the chat - in a real app, this might be dynamic based on the conversation
-  const groupId = "wellness-chat-group" 
+interface ChatMessage {
+  id: number;
+  message: string;
+  sender: {
+    user: {
+      id: string;
+      username: string;
+      email: string;
+      role: string;
+    };
+  };
+  sent_at: string;
+}
 
-  // Initialize socket connection and set up event listeners
+// Initialize socket outside component to avoid recreation on renders
+let socket: ReturnType<typeof io> | null = null;
+
+// Fetcher function for SWR
+const fetcher = async (url: string) => {
+  const response = await axios.get(url);
+  if (response.headers['content-type'].includes('text/html')) {
+    throw new Error('Received HTML instead of JSON');
+  }
+  return response.data;
+};
+
+const fetchGroups = async () => {
+  try {
+    const response = await axios.get('http://localhost:5000/api/groups');
+    return response.data;
+  } catch (error) {
+    console.error('Failed to fetch groups:', error);
+    throw error;
+  }
+};
+
+export default function GroupsPage() {
+  const [activeForumId, setActiveForumId] = useState<number | null>(null);
+  const [messageInput, setMessageInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [socketConnected, setSocketConnected] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const { data: groups = [], error: groupsError } = useSWR<Forum[]>('http://localhost:5000/api/groups', fetchGroups);
+
+  console.log("Groups data:", groups);
+
+  if (groupsError) {
+    return <div>Failed to load groups. Please try again later.</div>;
+  }
+
+  if (!groups) {
+    return <div>Loading groups...</div>;
+  }
+
+  const { data: messages = [], mutate: mutateMessages } = useSWR<ChatMessage[]>(
+    activeForumId ? `/api/forums/${activeForumId}/messages/` : null,
+    fetcher
+  );
+
+  // Initialize Socket.IO connection
   useEffect(() => {
-    // Connect to the WebSocket server
-    socketRef.current = io("http://localhost:3000") // Use your actual server URL
+    if (!socket) {
+      socket = io("http://localhost:5000", {
+        autoConnect: false,
+      });
 
-    // Join the chat group
-    socketRef.current.emit("join_group", groupId)
-    console.log(`Joining group: ${groupId}`)
+      socket.on("connect", () => {
+        console.log("Socket connected");
+        setSocketConnected(true);
+      });
+
+      socket.on("disconnect", () => {
+        console.log("Socket disconnected");
+        setSocketConnected(false);
+      });
+
+      socket.on("connect_error", (err) => {
+        console.error("Connection error:", err);
+        toast.error("Connection to chat server failed. Please refresh.");
+      });
+
+      socket.connect();
+    }
+
+    return () => {
+      if (socket) {
+        socket.off("connect");
+        socket.off("disconnect");
+        socket.off("connect_error");
+        socket.disconnect();
+      }
+    };
+  }, []);
+
+  // Forum room management
+  useEffect(() => {
+    if (!activeForumId || !socketConnected || !socket) return;
+
+    console.log(`Joining forum ${activeForumId}`);
+    socket.emit("join_forum", activeForumId);
 
     // Listen for new messages
-    socketRef.current.on("new_message", (newMessage: any) => {
-      console.log("New message received:", newMessage)
-      
-      // Only add the message if it's not from this user
-      if (newMessage.sender !== userId.current) {
-        const formattedMessage: Message = {
-          id: newMessage._id || Date.now().toString(),
-          content: newMessage.message,
-          sender: "bot", // Assuming all other messages are from the bot/assistant
-          timestamp: new Date(newMessage.createdAt || Date.now()),
-        }
-        
-        setMessages((prev) => [...prev, formattedMessage])
-      }
-    })
+    socket.on("new_message", handleNewMessage);
 
-    // Connection status logs
-    socketRef.current.on("connect", () => {
-      console.log("Socket connected:", socketRef.current.id)
-    })
-
-    socketRef.current.on("connect_error", (error: any) => {
-      console.error("Socket connection error:", error)
-    })
-
-    // Clean up on component unmount
     return () => {
-      console.log("Leaving group and disconnecting socket")
-      if (socketRef.current) {
-        socketRef.current.emit("leave_group", groupId)
-        socketRef.current.disconnect()
+      if (socket) {
+        socket.off("new_message");
+        socket.emit("leave_forum", activeForumId);
       }
+    };
+  }, [activeForumId, socketConnected]);
+
+  const handleNewMessage = (newMessage: ChatMessage) => {
+    console.log("here");
+    
+    console.log("New message received:", newMessage);
+    mutateMessages((currentMessages) => {
+      // Check if the message already exists
+      const exists = currentMessages?.some((msg) => msg.id === newMessage.id);
+      if (exists) return currentMessages;
+      return [...(currentMessages || []), newMessage];
+    }, false);
+  };
+
+  const filteredForums = Array.isArray(groups)
+  ? groups.filter(
+      (group) =>
+        (group.name || "").toLowerCase().includes(searchQuery.toLowerCase()) || 
+        (group.description || "").toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  : [];
+
+  // Forum handlers
+  const handleCreateForum = async (name: string, description: string, category: string, privacy: string) => {
+    try {
+      const response = await axios.post("http://localhost:5000/api/groups", {
+        name,
+        description,
+        category,
+        privacy,
+      });
+
+      mutate("http://localhost:5000/api/groups");
+      setActiveForumId(response.data._id); // Changed to _id
+      toast.success("Group created successfully!");
+      setIsDialogOpen(false);
+    } catch (error) {
+      console.error("Forum creation failed:", error);
+      toast.error("Failed to create group. Please try again.");
     }
-  }, [])
+  };
 
-  // Scroll to bottom of messages when messages change
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
-
-  const handleSendMessage = () => {
-    if (!inputValue.trim()) return
-
-    // Create user message object
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      content: inputValue,
-      sender: "user",
-      timestamp: new Date(),
+  // Fix the handleJoinForum function to ensure it has the correct groupId
+  const handleJoinForum = async (groupId: number | null) => {
+    // Use the explicit groupId passed to the function instead of relying on state
+    const idToJoin = groupId || activeForumId;
+    console.log(groupId);
+    
+    if (!idToJoin) {
+      toast.error("No group selected. Please select a group to join.");
+      return;
     }
     
-    // Add message to local state
-    setMessages((prev) => [...prev, userMessage])
-    
-    // Send message to server through socket
-    if (socketRef.current) {
-      console.log("Sending message to group:", groupId)
-      socketRef.current.emit("send_message", {
-        groupId: groupId,
-        sender: userId.current,
-        message: inputValue,
-      })
-    } else {
-      console.error("Socket not connected")
+    console.log("Joining group with ID:", idToJoin); // Debugging
+    try {
+      await axios.post(`http://localhost:5000/api/groups/${idToJoin}/join`);
+      setJoinedForums((prev) => new Set(prev).add(idToJoin));
+      mutate("http://localhost:5000/api/groups");
+      toast.success("Joined group successfully!");
+    } catch (error) {
+      console.error("Join failed:", error);
+      toast.error("Failed to join group. Please try again.");
     }
-    
-    setInputValue("")
-  }
+  };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault()
-      handleSendMessage()
+  const handleSendMessage = async () => {
+    console.log(messageInput);
+    if (!messageInput.trim() || !activeForumId || !socketConnected || !socket) {
+      return;
     }
-  }
+console.log("here" + activeForumId);
+
+    try {
+      const messageData = {
+        groupId: activeForumId,
+        sender: "anonymous", // Replace with actual username if authenticated
+        message: messageInput, // No authentication, so using a placeholder
+      };
+      const response = await axios.post(
+        `http://localhost:5000/api/groups/${activeForumId}/messages`,
+        messageData
+      );
+      console.log("Sending message:", messageData);
+      socket.emit("send_message", response.data);
+
+      // Optimistically add message to UI
+      const optimisticMessage: ChatMessage = {
+        id: Date.now(), // Temporary ID
+        message: messageInput,
+        sender: {
+          user: {
+            id: "anonymous",
+            username: "You",
+            email: "",
+            role: "member",
+          },
+        },
+        sent_at: new Date().toISOString(),
+      };
+
+      mutateMessages((currentMessages) => [...(currentMessages || []), optimisticMessage], false);
+      setMessageInput("");
+    } catch (error) {
+      console.error("Message send failed:", error);
+      toast.error("Failed to send message. Please try again.");
+    }
+  };
+
+  const handleDialogSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const form = e.currentTarget as HTMLFormElement;
+    const formData = new FormData(form);
+
+    handleCreateForum(
+      formData.get("name") as string,
+      formData.get("description") as string,
+      formData.get("category") as string,
+      formData.get("privacy") as string
+    );
+  };
 
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+  const [joinedForums, setJoinedForums] = useState<Set<number>>(new Set());
+
+  const isUserMemberOfForum = (groupId: number) => {
+    return joinedForums.has(groupId);
+  };
+
+  // Handle loading and error states
+  if (groupsError) {
+    return <div className="container mx-auto py-8 text-center">Failed to load groups. Please refresh the page.</div>;
   }
 
   return (
-    <div className="container mx-auto max-w-5xl py-8 lg:pl-25 lg:pr-25 md:pl-15 md:pr-15 sm:pl-10 sm:pr-10">
-      <h1 className="mb-8 text-center text-3xl font-bold text-primary">AI Wellness Assistant</h1>
+    <div className="container mx-auto max-w-7xl py-8 px-4 lg:px-8">
+      {/* Toast notifications */}
+      <Toaster position="top-right" />
 
-      <Tabs defaultValue="chat" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="chat">Chat</TabsTrigger>
-          <TabsTrigger value="resources">Resources</TabsTrigger>
-        </TabsList>
+      {/* Header Section */}
+      <div className="mb-8 flex flex-col items-center justify-between gap-4 md:flex-row">
+        <div>
+          <h1 className="text-3xl font-bold text-primary">Support Groups</h1>
+          <p className="text-muted-foreground">Connect with others in a safe, moderated environment</p>
+        </div>
 
-        <TabsContent value="chat" className="mt-4">
-          <Card className="border-none shadow-md">
-            <CardHeader className="border-b bg-primary/5 px-4 py-3">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10 border bg-primary/10">
-                  <AvatarFallback className="text-primary">AI</AvatarFallback>
-                  <AvatarImage src="/placeholder.svg?height=40&width=40" />
-                </Avatar>
-                <div>
-                  <CardTitle className="text-lg">Wellness Assistant</CardTitle>
-                  <p className="text-xs text-muted-foreground">Online • Replies instantly</p>
-                </div>
-              </div>
-            </CardHeader>
+        <div className="flex w-full items-center gap-2 md:w-auto">
+          <div className="relative flex-1 md:w-64">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search groups..."
+              className="pl-8"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
 
-            <CardContent className="p-0">
-              <div className="flex h-[60vh] flex-col">
-                <div className="flex-1 overflow-y-auto p-4">
-                  {messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`mb-4 flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
-                    >
-                      <div
-                        className={`max-w-[80%] rounded-2xl px-4 py-2 ${
-                          message.sender === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
-                        }`}
-                      >
-                        <div className="mb-1 flex items-center gap-2">
-                          {message.sender === "bot" && <Bot className="h-4 w-4 text-primary" />}
-                          <span className="text-xs font-medium">{message.sender === "user" ? "You" : "Assistant"}</span>
-                          <span className="text-xs text-muted-foreground">{formatTime(message.timestamp)}</span>
-                        </div>
-                        <p className="whitespace-pre-wrap text-sm">{message.content}</p>
-                      </div>
-                    </div>
-                  ))}
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">New Group</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create a Support Group</DialogTitle>
+                <DialogDescription>Start a new support group for people with similar experiences.</DialogDescription>
+              </DialogHeader>
 
-                  {isTyping && (
-                    <div className="mb-4 flex justify-start">
-                      <div className="max-w-[80%] rounded-2xl bg-muted px-4 py-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium">Assistant</span>
-                          <div className="flex space-x-1">
-                            <div className="h-2 w-2 animate-bounce rounded-full bg-primary/60 [animation-delay:0.2s]"></div>
-                            <div className="h-2 w-2 animate-bounce rounded-full bg-primary/60 [animation-delay:0.3s]"></div>
-                            <div className="h-2 w-2 animate-bounce rounded-full bg-primary/60 [animation-delay:0.4s]"></div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+              <form onSubmit={handleDialogSubmit}>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <label htmlFor="name" className="text-sm font-medium">
+                      Group Name
+                    </label>
+                    <Input id="name" name="name" placeholder="Enter group name" required />
+                  </div>
 
-                  <div ref={messagesEndRef} />
-                </div>
-
-                <div className="border-t p-4">
-                  <div className="flex items-end gap-2">
+                  <div className="grid gap-2">
+                    <label htmlFor="description" className="text-sm font-medium">
+                      Description
+                    </label>
                     <Textarea
-                      value={inputValue}
-                      onChange={(e) => setInputValue(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      placeholder="Type your message here..."
-                      className="min-h-[60px] resize-none"
+                      id="description"
+                      name="description"
+                      placeholder="What is this group about?"
+                      required
                     />
-                    <div className="flex flex-col gap-2">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="rounded-full text-muted-foreground hover:text-foreground"
-                      >
-                        <Smile className="h-5 w-5" />
-                        <span className="sr-only">Add emoji</span>
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="rounded-full text-muted-foreground hover:text-foreground"
-                      >
-                        <Paperclip className="h-5 w-5" />
-                        <span className="sr-only">Attach file</span>
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="rounded-full text-muted-foreground hover:text-foreground"
-                      >
-                        <Mic className="h-5 w-5" />
-                        <span className="sr-only">Voice message</span>
-                      </Button>
-                      <Button
-                        size="icon"
-                        onClick={handleSendMessage}
-                        className="rounded-full bg-primary text-primary-foreground"
-                      >
-                        <Send className="h-5 w-5" />
-                        <span className="sr-only">Send message</span>
-                      </Button>
-                    </div>
+                  </div>
+
+                  <div className="grid gap-2">
+                    <label htmlFor="category" className="text-sm font-medium">
+                      Category
+                    </label>
+                    <Select name="category" defaultValue="anxiety">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="anxiety">Anxiety</SelectItem>
+                        <SelectItem value="depression">Depression</SelectItem>
+                        <SelectItem value="stress">Stress Management</SelectItem>
+                        <SelectItem value="grief">Grief & Loss</SelectItem>
+                        <SelectItem value="addiction">Addiction Recovery</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="grid gap-2">
+                    <label htmlFor="privacy" className="text-sm font-medium">
+                      Privacy Setting
+                    </label>
+                    <Select name="privacy" defaultValue="public">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="public">Public (Anyone can join)</SelectItem>
+                        <SelectItem value="private">Private (Approval required)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                <DialogFooter>
+                  <Button type="submit">Create Group</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
 
-        <TabsContent value="resources" className="mt-4">
+      {/* Main Content */}
+      <div className="grid gap-6 md:grid-cols-3">
+        {/* Forums List */}
+        <div className="md:col-span-1">
           <Card className="border-none shadow-md">
             <CardHeader>
-              <CardTitle>Mental Wellness Resources</CardTitle>
+              <CardTitle>Available Groups</CardTitle>
+              <CardDescription>Find your community</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 md:grid-cols-2">
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">Coping Strategies</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="list-inside list-disc space-y-1 text-sm">
-                      <li>Deep breathing exercises</li>
-                      <li>Progressive muscle relaxation</li>
-                      <li>Mindfulness meditation</li>
-                      <li>Grounding techniques</li>
-                      <li>Journaling prompts</li>
-                    </ul>
-                  </CardContent>
-                </Card>
+              <Tabs defaultValue="all">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="all">All</TabsTrigger>
+                  <TabsTrigger value="my">My Groups</TabsTrigger>
+                  <TabsTrigger value="recommended">Recommended</TabsTrigger>
+                </TabsList>
 
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">Emergency Contacts</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2 text-sm">
-                      <li>
-                        <strong>Crisis Text Line:</strong> Text HOME to 741741
-                      </li>
-                      <li>
-                        <strong>National Suicide Prevention Lifeline:</strong> 988
-                      </li>
-                      <li>
-                        <strong>Emergency Services:</strong> 911
-                      </li>
-                    </ul>
-                  </CardContent>
-                </Card>
+                <TabsContent value="all" className="mt-4 space-y-4">
+                  {!groups ? (
+                    <div className="p-4 text-center text-muted-foreground">Loading groups...</div>
+                  ) : filteredForums?.length === 0 ? (
+                    <div className="p-4 text-center text-muted-foreground">No groups found</div>
+                  ) : (
+                    filteredForums?.map((forum) => (
+                      <div
+                        key={forum._id}
+                        className={`relative cursor-pointer rounded-lg p-3 transition-colors hover:bg-accent ${
+                          activeForumId === forum._id ? "bg-accent" : ""
+                        }`}
+                        onClick={() => setActiveForumId(forum._id)}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={`flex h-10 w-10 items-center justify-center rounded-full ${getCategoryColor(
+                              forum.category
+                            )}`}
+                          >
+                            <Users className="h-5 w-5" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-start justify-between">
+                              <h3 className="font-medium">{forum.name}</h3>
+                              {forum.privacy === "private" && <Lock className="h-4 w-4 text-muted-foreground" />}
+                            </div>
+                            <p className="text-xs text-muted-foreground">{forum.members_count} members</p>
+                            <div className="mt-1 flex items-center gap-1">
+                              <Badge variant="outline" className="text-xs">
+                                {forum.category}
+                              </Badge>
+                              <Badge variant="outline" className="text-xs">
+                                {forum.privacy}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
 
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">Recommended Reading</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="list-inside list-disc space-y-1 text-sm">
-                      <li>The Anxiety and Phobia Workbook</li>
-                      <li>Feeling Good: The New Mood Therapy</li>
-                      <li>The Mindful Way Through Depression</li>
-                      <li>The Body Keeps the Score</li>
-                    </ul>
-                  </CardContent>
-                </Card>
+                        {!isUserMemberOfForum(forum._id) && (
+                          <div className="absolute right-4 top-4">
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation(); // This is important
+                                handleJoinForum(forum._id); // Pass the specific forum ID
+                              }}
+                            >
+                              Join Group
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </TabsContent>
 
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">Self-Care Activities</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="list-inside list-disc space-y-1 text-sm">
-                      <li>Nature walks</li>
-                      <li>Creative expression</li>
-                      <li>Physical exercise</li>
-                      <li>Social connection</li>
-                      <li>Adequate sleep</li>
-                    </ul>
-                  </CardContent>
-                </Card>
-              </div>
+                <TabsContent value="my" className="mt-4 space-y-4">
+                  {!groups ? (
+                    <div className="p-4 text-center text-muted-foreground">Loading groups...</div>
+                  ) : (
+                    groups
+                      .filter((group) => (group.users || []).some((u) => u.user.id === "anonymous")) // No authentication
+                      .map((group) => (
+                        <div
+                          key={group._id}
+                          className={`cursor-pointer rounded-lg p-3 transition-colors hover:bg-accent ${
+                            activeForumId === group._id ? "bg-accent" : ""
+                          }`}
+                          onClick={() => {console.log("Setting active forum ID:", group._id); setActiveForumId(group._id)}}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div
+                              className={`flex h-10 w-10 items-center justify-center rounded-full ${getCategoryColor(
+                                group.category
+                              )}`}
+                            >
+                              <Users className="h-5 w-5" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-start justify-between">
+                                <h3 className="font-medium">{group.name}</h3>
+                                {group.privacy === "private" && <Lock className="h-4 w-4 text-muted-foreground" />}
+                              </div>
+                              <p className="text-xs text-muted-foreground">{group.members_count} members</p>
+                              <div className="mt-1 flex items-center gap-1">
+                                <Badge variant="outline" className="text-xs">
+                                  {group.category}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+                          {!isUserMemberOfForum(group._id) && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-background/80 opacity-0 transition-opacity hover:opacity-100">
+                              <Button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleJoinForum(group._id); 
+                                }}
+                              >
+                                Join Group
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                  )}
+                </TabsContent>
+
+                <TabsContent value="recommended" className="mt-4 space-y-4">
+                  <div className="p-4 text-center text-muted-foreground">
+                    Recommendations based on your activity will appear here
+                  </div>
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+        </div>
+
+        {/* Active Forum Chat */}
+        <div className="md:col-span-2">
+          {activeForumId ? (
+            <Card className="border-none shadow-md">
+              <CardHeader className="border-b bg-primary/5 px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`flex h-10 w-10 items-center justify-center rounded-full ${getCategoryColor(
+                        groups?.find((f) => f._id === activeForumId)?.category || "bg-gray-100"
+                      )}`}
+                    >
+                      <Users className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        {groups?.find((f) => f._id === activeForumId)?.name}
+                        {groups?.find((f) => f._id === activeForumId)?.privacy === "private" && (
+                          <Lock className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </CardTitle>
+                      <CardDescription className="flex items-center gap-2">
+                        <span>{groups?.find((f) => f._id === activeForumId)?.members_count} members</span>
+                        <span>•</span>
+                        <Badge variant="outline" className="text-xs">
+                          {groups?.find((f) => f._id === activeForumId)?.category}
+                        </Badge>
+                      </CardDescription>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center">
+                    <Badge variant={socketConnected ? "default" : "destructive"} className="gap-1">
+                      {socketConnected ? "Connected" : "Disconnected"}
+                    </Badge>
+                  </div>
+                </div>
+              </CardHeader>
+
+              <CardContent className="p-0">
+                <div className="flex h-[60vh] flex-col">
+                  <div className="flex-1 overflow-y-auto p-4">
+                    {messages.length === 0 ? (
+                      <div className="flex h-full flex-col items-center justify-center text-center p-4">
+                        <Calendar className="mb-2 h-8 w-8 text-muted-foreground" />
+                        <p className="text-muted-foreground">No messages yet. Be the first to send a message!</p>
+                      </div>
+                    ) : (
+                      messages.map((message) => {
+                        const isCurrentUser = message.sender.user.id === "anonymous"; // No authentication
+                        const isModerator = message.sender.user.role === "moderator";
+
+                        return (
+                          <div
+                            key={message.id}
+                            className={`mb-4 flex ${isCurrentUser ? "justify-end" : "justify-start"}`}
+                          >
+                            <div className="flex max-w-[80%] gap-2">
+                              {!isCurrentUser && (
+                                <Avatar className="h-8 w-8">
+                                  <AvatarImage
+                                    src={`https://avatar.vercel.sh/${message.sender.user.username}?size=32`}
+                                    alt={message.sender.user.username}
+                                  />
+                                  <AvatarFallback className={isModerator ? "bg-primary/20 text-primary" : ""}>
+                                    {message.sender.user.username.charAt(0).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                              )}
+
+                              <div>
+                                <div className="mb-1 flex items-center gap-2">
+                                  <span className="text-xs font-medium">
+                                    {message.sender.user.username}
+                                    {isModerator && (
+                                      <Badge variant="outline" className="ml-1 text-[10px]">
+                                        <Shield className="mr-1 h-3 w-3" />
+                                        Moderator
+                                      </Badge>
+                                    )}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {formatTime(new Date(message.sent_at))}
+                                  </span>
+                                </div>
+                                <div
+                                  className={`rounded-2xl px-4 py-2 ${
+                                    isCurrentUser
+                                      ? "bg-primary text-primary-foreground"
+                                      : isModerator
+                                      ? "bg-primary/10 text-foreground"
+                                      : "bg-muted"
+                                  }`}
+                                >
+                                  <p className="whitespace-pre-wrap text-sm">{message.message}</p>
+                                </div>
+                              </div>
+
+                              {isCurrentUser && (
+                                <Avatar className="h-8 w-8">
+                                  <AvatarImage
+                                    src={`https://avatar.vercel.sh/user?size=32`}
+                                    alt="User"
+                                  />
+                                  <AvatarFallback>U</AvatarFallback>
+                                </Avatar>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                    <div ref={messagesEndRef} />
+                  </div>
+
+                  {/* Message Input */}
+                  <div className="border-t p-4">
+                    {!isUserMemberOfForum(activeForumId) ? (
+                      <div className="text-center">
+                        <p className="mb-2 text-muted-foreground">You need to join this group to send messages</p>
+                        <Button onClick={() => handleJoinForum(activeForumId)}>Join Group</Button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-end gap-2">
+                          <Textarea
+                            value={messageInput}
+                            onChange={(e) => setMessageInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSendMessage();
+                              }
+                            }}
+                            placeholder="Type your message here..."
+                            className="min-h-[60px] resize-none"
+                            disabled={!socketConnected}
+                          />
+                          <Button
+                            size="icon"
+                            onClick={handleSendMessage}
+                            className="h-10 w-10 rounded-full"
+                            disabled={!messageInput.trim() || !socketConnected}
+                          >
+                            <Send className="h-5 w-5" />
+                            <span className="sr-only">Send message</span>
+                          </Button>
+                        </div>
+                        <p className="mt-2 text-center text-xs text-muted-foreground">
+                          <Shield className="mr-1 inline-block h-3 w-3" />
+                          Messages are moderated by AI to ensure a safe environment
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
+              <Users className="mb-4 h-12 w-12 text-muted-foreground" />
+              <h3 className="mb-2 text-xl font-medium">Select a Group</h3>
+              <p className="mb-6 text-muted-foreground">
+                Choose a support group from the list to join the conversation
+              </p>
+              <Button
+                onClick={() => document.querySelector('[data-state="active"]')?.scrollIntoView({ behavior: "smooth" })}
+              >
+                Browse All Groups
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
-  )
+  );
+}
+
+// Helper function for category colors
+function getCategoryColor(category?: string) {
+  if (!category) return "bg-gray-100 text-gray-800";
+
+  switch (category.toLowerCase()) {
+    case "anxiety":
+      return "bg-blue-100 text-blue-800";
+    case "depression":
+      return "bg-purple-100 text-purple-800";
+    case "stress":
+      return "bg-green-100 text-green-800";
+    case "grief":
+      return "bg-amber-100 text-amber-800";
+    case "addiction":
+      return "bg-red-100 text-red-800";
+    default:
+      return "bg-gray-100 text-gray-800";
+  }
 }
