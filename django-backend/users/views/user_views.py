@@ -3,10 +3,15 @@ from rest_framework.response import Response
 from datetime import datetime
 from django.utils.dateparse import parse_datetime
 from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.tokens import RefreshToken
 
-from users.models import UserProfile, Diary, Goal, Notification
+import logging
+
+logger = logging.getLogger(__name__)
+
+from users.models import UserProfile, MedicalProfile, Diary, Goal, Notification
 from users.serializers import (
-    RegisterSerializer, LoginSerializer, UserProfileSerializer, 
+    UserSerializer, RegisterSerializer, LoginSerializer, UserProfileSerializer, 
     DiarySerializer, GoalSerializer, NotificationSerializer
 )
 
@@ -74,14 +79,46 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        validated_data = serializer.validated_data
+        user = User.objects.create_user(
+            username=validated_data['username'],  
+            email=validated_data.get('email', ''),  # Ensure email is stored
+            password=validated_data['password']
+        )
+        
+        user_profile = UserProfile.objects.create(user=user)
+        return Response({
+            "message": "User registered successfully and UserProfile created."
+        }, status=status.HTTP_201_CREATED)
+
 class LoginView(generics.GenericAPIView):
     serializer_class = LoginSerializer
     permission_classes = [permissions.AllowAny]
 
-    def post(self, request):
+    def post(self, request, *args, **kwargs):
+        logger.info(f"Request data: {request.data}")
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        return Response(serializer.validated_data, status=status.HTTP_200_OK)
+        logger.info(f"Validated data: {serializer.validated_data}")
+
+        email = serializer.validated_data['email'].lower()
+        password = serializer.validated_data['password']
+
+        # Extract the user from the serializer's validated data
+        user = serializer.validated_data['user']
+
+        # Generate tokens here (not in the serializer)
+        tokens = RefreshToken.for_user(user)
+        return Response({
+            "message": "Login successful",
+            "refresh": str(tokens),
+            "access": str(tokens.access_token),
+            "user": UserSerializer(user).data
+        }, status=status.HTTP_200_OK)
 
 class DiaryListView(generics.ListCreateAPIView):
     serializer_class = DiarySerializer

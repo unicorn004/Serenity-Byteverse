@@ -27,20 +27,20 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
     def validate(self, data):
-        email = data.get('email', None)
-        password = data.get('password', None)
+        email = data.get('email', '').lower()  # Normalize email to lowercase
+        password = data.get('password')
+
         user = User.objects.filter(email=email).first()
 
         if user and user.check_password(password):
-            tokens = RefreshToken.for_user(user)
-            return {
-                'refresh': str(tokens),
-                'access': str(tokens.access_token),
-                'user': UserSerializer(user).data
-            }
+            # Add the user to the validated data
+            data['user'] = user
+            return data  # Return the original data + user
+
         raise serializers.ValidationError("Invalid credentials")
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(source='user.email', read_only=True)
     class Meta:
         model = UserProfile
         fields = '__all__'
