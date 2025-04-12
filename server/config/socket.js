@@ -1,64 +1,48 @@
-const socketIo = require('socket.io');
-
-let connectedUsers = {};
+const { Server } = require('socket.io');
+const Message = require('../models/Message');
 
 module.exports = (server) => {
-    const io = socketIo(server, {
-        cors: {
-            origin: "*", // Allow all origins 
-            methods: ["GET", "POST"]
-        }
+  const io = new Server(server, {
+    cors: {
+      origin: 'http://localhost:5173',
+      methods: ['GET', 'POST'],
+    },
+  });
+
+  io.on('connection', (socket) => {
+    console.log('User connected:', socket.id);
+
+    // Join a group
+    socket.on('join_group', (groupId) => {
+      socket.join(groupId);
+      console.log(`User ${socket.id} joined group ${groupId}`);
     });
 
-    io.on('connection', (socket) => {
-        console.log('A user connected:', socket.id);
-
-        socket.on('register', (userId) => {
-            connectedUsers[userId] = socket.id;
-            console.log('User registered:', userId);
-        });
-
-        socket.on('startCall', (data) => {
-            const { callerId, receiverId } = data;
-            const receiverSocketId = connectedUsers[receiverId];
-
-            if (receiverSocketId) {
-                io.to(receiverSocketId).emit('incomingCall', { callerId });
-            } else {
-                console.log('Receiver is not connected');
-            }
-        });
-
-        socket.on('acceptCall', (data) => {
-            const { callerId, receiverId } = data;
-            const receiverSocketId = connectedUsers[receiverId];
-
-            if (receiverSocketId) {
-                io.to(receiverSocketId).emit('callAccepted', { callerId });
-                io.to(callerId).emit('callAccepted', { receiverId });
-            }
-        });
-
-        socket.on('endCall', (data) => {
-            const { callerId, receiverId } = data;
-            const receiverSocketId = connectedUsers[receiverId];
-
-            if (receiverSocketId) {
-                io.to(receiverSocketId).emit('callEnded');
-            }
-            io.to(callerId).emit('callEnded');
-        });
-
-        socket.on('disconnect', () => {
-            console.log('User disconnected:', socket.id);
-            for (const userId in connectedUsers) {
-                if (connectedUsers[userId] === socket.id) {
-                    delete connectedUsers[userId];
-                    break;
-                }
-            }
-        });
+    // Leave a group
+    socket.on('leave_group', (groupId) => {
+      socket.leave(groupId);
+      console.log(`User ${socket.id} left group ${groupId}`);
     });
 
-    return io; 
+    // Send a message
+    socket.on('send_message', async (data) => {
+      const { groupId, sender, message } = data;
+
+      try {
+        // Save the message to MongoDB
+        const newMessage = new Message({ groupId, sender, message });
+        await newMessage.save();
+
+        // Broadcast the message to all users in the group
+        io.to(groupId).emit('new_message', newMessage);
+      } catch (error) {
+        console.error('Failed to send message:', error);
+      }
+    });
+
+    // Handle disconnection
+    socket.on('disconnect', () => {
+      console.log('User disconnected:', socket.id);
+    });
+  });
 };

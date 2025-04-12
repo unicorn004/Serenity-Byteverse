@@ -5,19 +5,24 @@ const dotenv = require('dotenv');
 const connectDB = require('./config/database');
 
 dotenv.config();
-const { bookSession, getUserBookings } = require('./controllers/counselorController');
-const { protect } = require('./middleware/authMiddleware');
-const sessionRouter = require('./routes/counselorRoutes');
 
 const app = express();
 const server = http.createServer(app);
 
+// Integrate Socket.IO
 require('./config/socket')(server);
-app.use(express.json());
-app.use(cors());
 
+// Middleware
+app.use(express.json());
+app.use(cors({
+  origin: 'http://localhost:5173',
+  credentials: true,
+}));
+
+// Connect to the database
 connectDB();
 
+// Routes
 const userRoutes = require('./routes/userRoutes');
 const assessmentRoutes = require('./routes/assessmentRoutes');
 const chatbotRoutes = require('./routes/chatbotRoutes');
@@ -27,7 +32,9 @@ const counselorRoutes = require('./routes/counselorRoutes');
 const diaryRoutes = require('./routes/diaryRoutes');
 const testRoutes = require('./routes/testRoutes');
 const goalPlannerRoutes = require('./routes/goalPlannerRoutes');
+const groupRoutes = require('./routes/groupRoutes'); // Add group routes
 
+// API Routes
 app.use('/api/users', userRoutes);
 app.use('/api/assessments', assessmentRoutes);
 app.use('/api/chatbot', chatbotRoutes);
@@ -37,8 +44,10 @@ app.use('/api/counselors', counselorRoutes);
 app.use('/api/diary', diaryRoutes);
 app.use('/api/ml-tests', testRoutes);
 app.use('/api/goals', goalPlannerRoutes);
+app.use('/api/groups', groupRoutes); // Add group routes
 
+// Start the server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+server.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });

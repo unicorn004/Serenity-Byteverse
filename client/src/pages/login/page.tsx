@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 
 import {login} from "../../api/auth"
 import {useAuthContext} from "../../context/useAuthContext"
+import {getUserFromCookie} from "../../utils/get-user"
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -27,12 +28,12 @@ export default function LoginPage() {
       const result = await login({ email, password }); // Call login API
       console.log('login result = ',result);
       saveSession(result); // Store session data in AuthContext
-      setIsLoading(false);
+      setIsLoading(false);  
+      console.log("user = ",getUserFromCookie());
       navigate('/dashboard'); // Redirect user after successful login
     } catch (err) {
       console.log(err);
     }
-
   };
 
   return (
