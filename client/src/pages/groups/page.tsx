@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { Search, Users, Send, Plus, Lock, Shield, Calendar, Clock } from "lucide-react";
 import useSWR, { mutate } from "swr";
 import axios from "axios";
-import { Socket } from "socket.io-client";
 import io from "socket.io-client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,47 +23,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Toaster, toast } from "sonner";
 
 interface Forum {
-  _id: number; // Changed from id to _id
+  _id: string;
   name: string;
   description: string;
   category: string;
   privacy: "public" | "private";
   members_count: number;
-  admin: {
-    user: {
-      username: string;
-      email: string;
-    };
-  };
-  users: Array<{
-    user: {
-      id: string;
-      username: string;
-      email: string;
-      role: string;
-    };
-  }>;
+  members: string[];
   created_at: string;
 }
 
 interface ChatMessage {
-  id: number;
+  _id: string;
+  sender: string;
   message: string;
-  sender: {
-    user: {
-      id: string;
-      username: string;
-      email: string;
-      role: string;
-    };
-  };
   sent_at: string;
 }
 
-// Initialize socket outside component to avoid recreation on renders
 let socket: ReturnType<typeof io> | null = null;
 
-// Fetcher function for SWR
 const fetcher = async (url: string) => {
   const response = await axios.get(url);
   if (response.headers['content-type'].includes('text/html')) {
@@ -84,94 +61,107 @@ const fetchGroups = async () => {
 };
 
 export default function GroupsPage() {
-  const [activeForumId, setActiveForumId] = useState<number | null>(null);
+  
+  const [anonId] = useState(`anon-${Math.random().toString(36).substr(2, 9)}`);
+  const [activeForumId, setActiveForumId] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [socketConnected, setSocketConnected] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [joinedForums, setJoinedForums] = useState<Set<string>>(new Set());
 
   const { data: groups = [], error: groupsError } = useSWR<Forum[]>('http://localhost:5000/api/groups', fetchGroups);
-
-  console.log("Groups data:", groups);
-
-  if (groupsError) {
-    return <div>Failed to load groups. Please try again later.</div>;
-  }
-
-  if (!groups) {
-    return <div>Loading groups...</div>;
-  }
-
   const { data: messages = [], mutate: mutateMessages } = useSWR<ChatMessage[]>(
-    activeForumId ? `/api/forums/${activeForumId}/messages/` : null,
+    activeForumId ? `http://localhost:5000/api/groups/${activeForumId}/messages` : null,
     fetcher
   );
 
-  // Initialize Socket.IO connection
   useEffect(() => {
     if (!socket) {
-      socket = io("http://localhost:5000", {
-        autoConnect: false,
-      });
+      socket = io("http://localhost:5000", { autoConnect: false });
 
-      socket.on("connect", () => {
-        console.log("Socket connected");
-        setSocketConnected(true);
-      });
-
-      socket.on("disconnect", () => {
-        console.log("Socket disconnected");
-        setSocketConnected(false);
-      });
-
+      socket.on("connect", () => setSocketConnected(true));
+      socket.on("disconnect", () => setSocketConnected(false));
       socket.on("connect_error", (err) => {
         console.error("Connection error:", err);
         toast.error("Connection to chat server failed. Please refresh.");
       });
-
+      
       socket.connect();
     }
 
     return () => {
       if (socket) {
-        socket.off("connect");
-        socket.off("disconnect");
-        socket.off("connect_error");
         socket.disconnect();
+        socket = null;
       }
     };
   }, []);
 
-  // Forum room management
+  // Room management
   useEffect(() => {
-    if (!activeForumId || !socketConnected || !socket) return;
+    if (!socket || !activeForumId || !socketConnected) return;
 
-    console.log(`Joining forum ${activeForumId}`);
-    socket.emit("join_forum", activeForumId);
-
-    // Listen for new messages
+    socket.emit("join_group", activeForumId);
     socket.on("new_message", handleNewMessage);
 
     return () => {
       if (socket) {
+        socket.emit("leave_group", activeForumId);
         socket.off("new_message");
-        socket.emit("leave_forum", activeForumId);
       }
     };
   }, [activeForumId, socketConnected]);
 
   const handleNewMessage = (newMessage: ChatMessage) => {
-    console.log("here");
-    
-    console.log("New message received:", newMessage);
-    mutateMessages((currentMessages) => {
-      // Check if the message already exists
-      const exists = currentMessages?.some((msg) => msg.id === newMessage.id);
-      if (exists) return currentMessages;
-      return [...(currentMessages || []), newMessage];
+    mutateMessages((current) => {
+      const exists = current?.some(msg => msg._id === newMessage._id);
+      return exists ? current : [...(current || []), newMessage];
     }, false);
   };
+
+  const handleCreateForum = async (name: string, description: string, category: string, privacy: string) => {
+    try {
+      const response = await axios.post("http://localhost:5000/api/groups", {
+        name, description, category, privacy
+      });
+      mutate("http://localhost:5000/api/groups");
+      setActiveForumId(response.data._id);
+      toast.success("Group created!");
+      setIsDialogOpen(false);
+    } catch (error) {
+      toast.error("Failed to create group");
+    }
+  };
+
+  const handleJoinForum = async (groupId: string) => {
+    try {
+      await axios.post(`http://localhost:5000/api/groups/${groupId}/join`, { username: anonId });
+      setJoinedForums(prev => new Set([...prev, groupId]));
+      mutate("http://localhost:5000/api/groups");
+      toast.success("Joined group!");
+    } catch (error) {
+      toast.error("Failed to join group");
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!messageInput.trim() || !activeForumId) return;
+
+    try {
+      const messageData = {
+        message: messageInput,
+        sender: anonId
+      };
+      await axios.post(`http://localhost:5000/api/groups/${activeForumId}/messages`, messageData);
+      setMessageInput("");
+    } catch (error) {
+      toast.error("Failed to send message, please try again.");
+    }
+  };
+
+  const isUserMemberOfForum = (groupId: string) => joinedForums.has(groupId);
 
   const filteredForums = Array.isArray(groups)
   ? groups.filter(
@@ -180,92 +170,6 @@ export default function GroupsPage() {
         (group.description || "").toLowerCase().includes(searchQuery.toLowerCase())
     )
   : [];
-
-  // Forum handlers
-  const handleCreateForum = async (name: string, description: string, category: string, privacy: string) => {
-    try {
-      const response = await axios.post("http://localhost:5000/api/groups", {
-        name,
-        description,
-        category,
-        privacy,
-      });
-
-      mutate("http://localhost:5000/api/groups");
-      setActiveForumId(response.data._id); // Changed to _id
-      toast.success("Group created successfully!");
-      setIsDialogOpen(false);
-    } catch (error) {
-      console.error("Forum creation failed:", error);
-      toast.error("Failed to create group. Please try again.");
-    }
-  };
-
-  // Fix the handleJoinForum function to ensure it has the correct groupId
-  const handleJoinForum = async (groupId: number | null) => {
-    // Use the explicit groupId passed to the function instead of relying on state
-    const idToJoin = groupId || activeForumId;
-    console.log(groupId);
-    
-    if (!idToJoin) {
-      toast.error("No group selected. Please select a group to join.");
-      return;
-    }
-    
-    console.log("Joining group with ID:", idToJoin); // Debugging
-    try {
-      await axios.post(`http://localhost:5000/api/groups/${idToJoin}/join`);
-      setJoinedForums((prev) => new Set(prev).add(idToJoin));
-      mutate("http://localhost:5000/api/groups");
-      toast.success("Joined group successfully!");
-    } catch (error) {
-      console.error("Join failed:", error);
-      toast.error("Failed to join group. Please try again.");
-    }
-  };
-
-  const handleSendMessage = async () => {
-    console.log(messageInput);
-    if (!messageInput.trim() || !activeForumId || !socketConnected || !socket) {
-      return;
-    }
-console.log("here" + activeForumId);
-
-    try {
-      const messageData = {
-        groupId: activeForumId,
-        sender: "anonymous", // Replace with actual username if authenticated
-        message: messageInput, // No authentication, so using a placeholder
-      };
-      const response = await axios.post(
-        `http://localhost:5000/api/groups/${activeForumId}/messages`,
-        messageData
-      );
-      console.log("Sending message:", messageData);
-      socket.emit("send_message", response.data);
-
-      // Optimistically add message to UI
-      const optimisticMessage: ChatMessage = {
-        id: Date.now(), // Temporary ID
-        message: messageInput,
-        sender: {
-          user: {
-            id: "anonymous",
-            username: "You",
-            email: "",
-            role: "member",
-          },
-        },
-        sent_at: new Date().toISOString(),
-      };
-
-      mutateMessages((currentMessages) => [...(currentMessages || []), optimisticMessage], false);
-      setMessageInput("");
-    } catch (error) {
-      console.error("Message send failed:", error);
-      toast.error("Failed to send message. Please try again.");
-    }
-  };
 
   const handleDialogSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -283,27 +187,6 @@ console.log("here" + activeForumId);
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      weekday: "long",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-  const [joinedForums, setJoinedForums] = useState<Set<number>>(new Set());
-
-  const isUserMemberOfForum = (groupId: number) => {
-    return joinedForums.has(groupId);
-  };
-
-  // Handle loading and error states
-  if (groupsError) {
-    return <div className="container mx-auto py-8 text-center">Failed to load groups. Please refresh the page.</div>;
-  }
 
   return (
     <div className="container mx-auto max-w-7xl py-8 px-4 lg:px-8">
@@ -464,8 +347,8 @@ console.log("here" + activeForumId);
                           <div className="absolute right-4 top-4">
                             <Button
                               onClick={(e) => {
-                                e.stopPropagation(); // This is important
-                                handleJoinForum(forum._id); // Pass the specific forum ID
+                                e.stopPropagation(); 
+                                handleJoinForum(forum._id); 
                               }}
                             >
                               Join Group
@@ -482,7 +365,7 @@ console.log("here" + activeForumId);
                     <div className="p-4 text-center text-muted-foreground">Loading groups...</div>
                   ) : (
                     groups
-                      .filter((group) => (group.users || []).some((u) => u.user.id === "anonymous")) // No authentication
+                      .filter((group) => (group.members || []).includes(anonId)) // No authentication
                       .map((group) => (
                         <div
                           key={group._id}
@@ -541,7 +424,7 @@ console.log("here" + activeForumId);
 
         {/* Active Forum Chat */}
         <div className="md:col-span-2">
-          {activeForumId ? (
+          { activeForumId ? (
             <Card className="border-none shadow-md">
               <CardHeader className="border-b bg-primary/5 px-4 py-3">
                 <div className="flex items-center justify-between">
@@ -580,159 +463,147 @@ console.log("here" + activeForumId);
 
               <CardContent className="p-0">
                 <div className="flex h-[60vh] flex-col">
-                  <div className="flex-1 overflow-y-auto p-4">
-                    {messages.length === 0 ? (
-                      <div className="flex h-full flex-col items-center justify-center text-center p-4">
-                        <Calendar className="mb-2 h-8 w-8 text-muted-foreground" />
-                        <p className="text-muted-foreground">No messages yet. Be the first to send a message!</p>
-                      </div>
-                    ) : (
-                      messages.map((message) => {
-                        const isCurrentUser = message.sender.user.id === "anonymous"; // No authentication
-                        const isModerator = message.sender.user.role === "moderator";
-
-                        return (
-                          <div
-                            key={message.id}
-                            className={`mb-4 flex ${isCurrentUser ? "justify-end" : "justify-start"}`}
-                          >
-                            <div className="flex max-w-[80%] gap-2">
-                              {!isCurrentUser && (
-                                <Avatar className="h-8 w-8">
-                                  <AvatarImage
-                                    src={`https://avatar.vercel.sh/${message.sender.user.username}?size=32`}
-                                    alt={message.sender.user.username}
-                                  />
-                                  <AvatarFallback className={isModerator ? "bg-primary/20 text-primary" : ""}>
-                                    {message.sender.user.username.charAt(0).toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                              )}
-
-                              <div>
-                                <div className="mb-1 flex items-center gap-2">
-                                  <span className="text-xs font-medium">
-                                    {message.sender.user.username}
-                                    {isModerator && (
-                                      <Badge variant="outline" className="ml-1 text-[10px]">
-                                        <Shield className="mr-1 h-3 w-3" />
-                                        Moderator
-                                      </Badge>
-                                    )}
-                                  </span>
-                                  <span className="text-xs text-muted-foreground">
-                                    {formatTime(new Date(message.sent_at))}
-                                  </span>
-                                </div>
-                                <div
-                                  className={`rounded-2xl px-4 py-2 ${
-                                    isCurrentUser
-                                      ? "bg-primary text-primary-foreground"
-                                      : isModerator
-                                      ? "bg-primary/10 text-foreground"
-                                      : "bg-muted"
-                                  }`}
-                                >
-                                  <p className="whitespace-pre-wrap text-sm">{message.message}</p>
-                                </div>
-                              </div>
-
-                              {isCurrentUser && (
-                                <Avatar className="h-8 w-8">
-                                  <AvatarImage
-                                    src={`https://avatar.vercel.sh/user?size=32`}
-                                    alt="User"
-                                  />
-                                  <AvatarFallback>U</AvatarFallback>
-                                </Avatar>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                    <div ref={messagesEndRef} />
-                  </div>
-
-                  {/* Message Input */}
-                  <div className="border-t p-4">
-                    {!isUserMemberOfForum(activeForumId) ? (
-                      <div className="text-center">
-                        <p className="mb-2 text-muted-foreground">You need to join this group to send messages</p>
-                        <Button onClick={() => handleJoinForum(activeForumId)}>Join Group</Button>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex items-end gap-2">
-                          <Textarea
-                            value={messageInput}
-                            onChange={(e) => setMessageInput(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" && !e.shiftKey) {
-                                e.preventDefault();
-                                handleSendMessage();
-                              }
-                            }}
-                            placeholder="Type your message here..."
-                            className="min-h-[60px] resize-none"
-                            disabled={!socketConnected}
-                          />
-                          <Button
-                            size="icon"
-                            onClick={handleSendMessage}
-                            className="h-10 w-10 rounded-full"
-                            disabled={!messageInput.trim() || !socketConnected}
-                          >
-                            <Send className="h-5 w-5" />
-                            <span className="sr-only">Send message</span>
-                          </Button>
-                        </div>
-                        <p className="mt-2 text-center text-xs text-muted-foreground">
-                          <Shield className="mr-1 inline-block h-3 w-3" />
-                          Messages are moderated by AI to ensure a safe environment
-                        </p>
-                      </>
-                    )}
-                  </div>
+                <div className="flex-1 overflow-y-auto p-4">
+  {messages.length === 0 ? (
+    <div className="flex h-full flex-col items-center justify-center text-center p-4">
+      <Calendar className="mb-2 h-8 w-8 text-muted-foreground" />
+      <p className="text-muted-foreground">No messages yet. Be the first to send a message!</p>
+    </div>
+  ) : (
+    messages.map((message) => {
+      const isCurrentUser = message.sender === anonId;
+      return (
+        <div key={message._id} className={`mb-4 flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+          <div className="flex max-w-[80%] gap-2">
+            {!isCurrentUser && (
+              <Avatar className="h-8 w-8">
+                <AvatarImage
+                  src={`https://avatar.vercel.sh/${message.sender}?size=32`}
+                  alt={message.sender}
+                />
+                <AvatarFallback>
+                  {message.sender.startsWith('anon-') 
+                    ? message.sender.substr(5, 1).toUpperCase()
+                    : message.sender.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+            )}
+            
+            <div className="flex-1">
+              <div className="mb-1 flex items-center gap-2">
+                <span className="text-xs font-medium">
+                  {message.sender.startsWith('anon-') 
+                    ? `Anonymous ${message.sender.substr(5, 3)}`
+                    : message.sender}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {formatTime(new Date(message.sent_at))}
+                </span>
+              </div>
+              <div
+                className={`rounded-2xl px-4 py-2 ${
+                  isCurrentUser
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted"
+                }`}
+              >
+                <p className="whitespace-pre-wrap text-sm">{message.message}</p>
+              </div>
+            </div>
+            
+            {isCurrentUser && (
+              <Avatar className="h-8 w-8">
+                <AvatarImage
+                  src={`https://avatar.vercel.sh/${anonId}?size=32`}
+                  alt="You"
+                />
+                <AvatarFallback>
+                  {anonId.substr(5, 1).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            )}
+          </div>
+        </div>
+      );
+    })
+  )}
+</div>
+<div className="border-t p-4">
+            {!isUserMemberOfForum(activeForumId) ? (
+              <div className="text-center">
+                <p className="mb-2 text-muted-foreground">You need to join this group to send messages</p>
+                <Button onClick={() => handleJoinForum(activeForumId)}>Join Group</Button>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-end gap-2">
+                  <Textarea
+                    value={messageInput}
+                    onChange={(e) => setMessageInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
+                    placeholder="Type your message here..."
+                    className="min-h-[60px] resize-none"
+                    disabled={!socketConnected}
+                  />
+                  <Button
+                    size="icon"
+                    onClick={handleSendMessage}
+                    className="h-10 w-10 rounded-full"
+                    disabled={!messageInput.trim() || !socketConnected}
+                  >
+                    <Send className="h-5 w-5" />
+                    <span className="sr-only">Send message</span>
+                  </Button>
+                </div>
+                <p className="mt-2 text-center text-xs text-muted-foreground">
+                  <Shield className="mr-1 inline-block h-3 w-3" />
+                  Messages are moderated by AI to ensure a safe environment
+                </p>
+              </>
+            )}
+          </div>
                 </div>
               </CardContent>
             </Card>
-          ) : (
-            <div className="flex h-full flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
-              <Users className="mb-4 h-12 w-12 text-muted-foreground" />
-              <h3 className="mb-2 text-xl font-medium">Select a Group</h3>
-              <p className="mb-6 text-muted-foreground">
-                Choose a support group from the list to join the conversation
-              </p>
-              <Button
-                onClick={() => document.querySelector('[data-state="active"]')?.scrollIntoView({ behavior: "smooth" })}
-              >
-                Browse All Groups
-              </Button>
-            </div>
-          )}
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
+                <Users className="mb-4 h-12 w-12 text-muted-foreground" />
+                <h3 className="mb-2 text-xl font-medium">Select a Group</h3>
+                <p className="mb-6 text-muted-foreground">
+                  Choose a support group from the list to join the conversation
+                </p>
+                <Button
+                  onClick={() => document.querySelector('[data-state="active"]')?.scrollIntoView({ behavior: "smooth" })}
+                >
+                  Browse All Groups
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-// Helper function for category colors
-function getCategoryColor(category?: string) {
-  if (!category) return "bg-gray-100 text-gray-800";
-
-  switch (category.toLowerCase()) {
-    case "anxiety":
-      return "bg-blue-100 text-blue-800";
-    case "depression":
-      return "bg-purple-100 text-purple-800";
-    case "stress":
-      return "bg-green-100 text-green-800";
-    case "grief":
-      return "bg-amber-100 text-amber-800";
-    case "addiction":
-      return "bg-red-100 text-red-800";
-    default:
-      return "bg-gray-100 text-gray-800";
+    );
   }
-}
+  function getCategoryColor(category?: string) {
+    if (!category) return "bg-gray-100 text-gray-800";
+  
+    switch (category.toLowerCase()) {
+      case "anxiety":
+        return "bg-blue-100 text-blue-800";
+      case "depression":
+        return "bg-purple-100 text-purple-800";
+      case "stress":
+        return "bg-green-100 text-green-800";
+      case "grief":
+        return "bg-amber-100 text-amber-800";
+      case "addiction":
+        return "bg-red-100 text-red-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  }
