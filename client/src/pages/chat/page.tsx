@@ -1,6 +1,6 @@
 import type React from "react"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef} from "react"
 import { Send, Smile, Paperclip, Mic, Bot } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -28,11 +28,6 @@ export default function ChatPage() {
   const [inputValue, setInputValue] = useState("")
   const [isTyping, setIsTyping] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-
-  // Auto-scroll to bottom when messages change
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
 
   const handleSendMessage = () => {
     if (!inputValue.trim()) return
