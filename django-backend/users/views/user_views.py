@@ -1,12 +1,9 @@
 from rest_framework import viewsets, status, permissions, generics
 from rest_framework.response import Response
-from rest_framework.exceptions import NotFound
-from django.shortcuts import get_object_or_404
-from rest_framework.permissions import IsAuthenticated
 from datetime import datetime
 from django.utils.dateparse import parse_datetime
 from django.contrib.auth import get_user_model
-from rest_framework_simplejwt.tokens import RefreshToken
+
 from users.models import UserProfile, Diary, Goal, Notification
 from users.serializers import (
     RegisterSerializer, LoginSerializer, UserProfileSerializer, 
