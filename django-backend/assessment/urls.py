@@ -7,6 +7,7 @@ from .views import (
     AnswerViewSet,
     UserAssessmentViewSet,
 )
+from . import views
 
 router = DefaultRouter()
 router.register(r"profiles", UserProfileViewSet)
@@ -17,4 +18,6 @@ router.register(r"user-assessments", UserAssessmentViewSet)
 
 urlpatterns = [
     path("", include(router.urls)),
+    path("grade/", views.GradeAssessmentView.as_view()),
+
 ]
