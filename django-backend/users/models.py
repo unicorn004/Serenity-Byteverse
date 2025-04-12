@@ -19,6 +19,7 @@ class UserProfile(models.Model):
     embedding = models.JSONField(null=True, blank=True)  # Vector for recommendations
     streak = models.PositiveIntegerField(default=0)
     role = models.CharField(max_length=20, choices=[('user', 'User'), ('therapist', 'Therapist'), ('admin', 'Admin')], default='user')
+    llm_remark = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.user.username}'s Profile"

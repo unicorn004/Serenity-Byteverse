@@ -1,24 +1,24 @@
-from rest_framework import viewsets, status, generics, permissions
+from rest_framework import viewsets, status, permissions, generics
 from rest_framework.response import Response
 from django.contrib.auth import get_user_model
-from rest_framework_simplejwt.tokens import RefreshToken
-from .models import UserProfile
-from .serializers import (
-    RegisterSerializer, LoginSerializer, UserProfileSerializer
+from users.models import UserProfile, Diary, Goal, Notification
+from users.serializers import (
+    RegisterSerializer, LoginSerializer, UserProfileSerializer, 
+    DiarySerializer, GoalSerializer, NotificationSerializer
 )
 
 User = get_user_model()
 
 class UserProfileViewSet(viewsets.ModelViewSet):
     """
-    This ViewSet provides CRUD operations for the user profile.
+    ViewSet for CRUD operations on the user profile.
     """
     serializer_class = UserProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         """
-        This view returns the profile for the currently authenticated user.
+        This view returns the profile for the authenticated user.
         """
         return UserProfile.objects.filter(user=self.request.user)
 
@@ -36,24 +36,41 @@ class LoginView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         return Response(serializer.validated_data, status=status.HTTP_200_OK)
 
-class UserProfileView(generics.RetrieveUpdateAPIView):
-    serializer_class = UserProfileSerializer
+class DiaryListView(generics.ListCreateAPIView):
+    serializer_class = DiarySerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        profile = UserProfile.objects.get(user=self.request.user)
+        return Diary.objects.filter(user=profile)
+
+class GoalListView(generics.ListCreateAPIView):
+    serializer_class = GoalSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_object(self):
-        try:
-            profile = UserProfile.objects.get(user=self.request.user)
-        except UserProfile.DoesNotExist:
-            profile = UserProfile.objects.create(user=self.request.user)
-        return profile
+    def get_queryset(self):
+        profile = UserProfile.objects.get(user=self.request.user)
+        return Goal.objects.filter(user=profile)
 
-class UpdateUserProfileView(generics.UpdateAPIView):
-    serializer_class = UserProfileSerializer
+class NotificationListView(generics.ListAPIView):
+    serializer_class = NotificationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_object(self):
-        try:
-            user_profile = UserProfile.objects.get(user=self.request.user)
-        except UserProfile.DoesNotExist:
-            user_profile = UserProfile.objects.create(user=self.request.user)
-        return user_profile
+    def get_queryset(self):
+        return Notification.objects.filter(user=self.request.user)
+
+class CreateDiaryView(generics.CreateAPIView):
+    serializer_class = DiarySerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def perform_create(self, serializer):
+        profile = UserProfile.objects.get(user=self.request.user)
+        serializer.save(user=profile)
+
+class CreateGoalView(generics.CreateAPIView):
+    serializer_class = GoalSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def perform_create(self, serializer):
+        profile = UserProfile.objects.get(user=self.request.user)
+        serializer.save(user=profile)
