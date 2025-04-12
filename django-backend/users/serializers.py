@@ -1,11 +1,13 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from .models import UserProfile, MedicalProfile, Diary, Goal, Notification
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import MedicalProfile, Diary, Goal, Notification
-from assessment.models import UserProfile
+
 User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
+    streak = serializers.IntegerField(source='profile.streak', read_only=True)
+    role = serializers.CharField(source='profile.role', read_only=True)
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'streak', 'role']
@@ -46,17 +48,18 @@ class UserProfileSerializer(serializers.ModelSerializer):
 class MedicalProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = MedicalProfile
-        fields = '__all__'
+        exclude = ['user']
 
 class DiarySerializer(serializers.ModelSerializer):
     class Meta:
         model = Diary
-        fields = '__all__'
+        exclude = ['user']
 
 class GoalSerializer(serializers.ModelSerializer):
     class Meta:
         model = Goal
-        fields = '__all__'
+        exclude = ['user']
+
 
 class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
