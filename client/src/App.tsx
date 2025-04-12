@@ -8,6 +8,8 @@ import DashboardPage from "./pages/dashboard/page";
 import ChatPage from "./pages/chat/page";
 import EmotionsPage from "./pages/emotions/page";
 import GroupsPage from "./pages/groups/page";
+import LoginPage from "./pages/login/page";
+import SignupPage from "./pages/signup/page";
 
 export default function App() {
   return (
@@ -22,6 +24,8 @@ export default function App() {
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/emotions" element={<EmotionsPage />} />
         <Route path="/groups" element={<GroupsPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
       </Routes>
       <Footer />
     </div>
