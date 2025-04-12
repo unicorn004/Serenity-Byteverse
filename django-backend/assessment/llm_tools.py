@@ -41,7 +41,7 @@ REMARK_PROMPT = PromptTemplate(
     "remark": A concise summary of the user's mental state with respect to the assessment context based on the results observed through the assessment responses. 
     "solution": Suggest solutions that the user can implement in his day to day life, like medication, exercises or general improvements they can make, like a mental health professional. 
     
-    Respond with a valid JSON format only. Try not to leave any field null or empty, fill in valid format mentioned. Both fields remark and solution must be text-fields.
+    *Respond with a valid JSON format only*. Please do not give any precursor or post text (like Here's your reponse.. etc..) and Try not to leave any field null or empty, fill in valid format mentioned. Both fields remark and solution must be text-fields.
     """
     
 )
@@ -122,7 +122,7 @@ def assign_llm_scores(responses, user):
     Assign subjective scores to user responses using the LLM.
     """
     for question in responses:
-        response = question.responses.filter(user=user).first()
+        response = question.responses.filter(user=user).order_by('-date_taken').first()
         scoring_context = {
             "question": question.text,
             "response": response.response_text or str(response.response_score),
@@ -148,7 +148,7 @@ def get_assessment_context(user_assessment):
             # "mood_score": user_profile.mood_score,
         }),
         "responses": json.dumps({
-            resp.text: resp.responses.filter(user=user_profile).first().response_text or str(resp.response.filter(user=user_profile).first().response_score)
+            resp.text: resp.responses.filter(user=user_profile).first().response_text or str(resp.responses.filter(user=user_profile).order_by('-date_taken').first().response_score)
             for resp in questions
         }),
         "assessment": user_assessment.assessment.name,
@@ -333,6 +333,7 @@ def grade_assessment(assessment_id, user_id):
     user_assessment.severity = user_assessment.determine_severity()
     
     # Step 3: Generate Subjective Remark
+    print("Reached Here")
     generate_llm_remark(user_assessment)
     
     # Save the updated UserAssessment
