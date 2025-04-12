@@ -35,6 +35,8 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [ 
+    "daphne",
+    "channels",
     'mlmodel',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -43,6 +45,12 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
      'rest_framework',
+     'chat',
+     'assessment',
+     'doctor',
+     'forum',
+     'users',
+     'corsheaders',
 ]
 
 REST_FRAMEWORK = {
@@ -244,4 +252,4 @@ CHANNEL_LAYERS = {
 # }
 
 
-AUTH_USER_MODEL = 'users.User'
+# AUTH_USER_MODEL = 'users.User'

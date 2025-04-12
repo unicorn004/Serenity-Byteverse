@@ -1,7 +1,7 @@
 from django.db import models
-from assessment.models import UserProfile
-from django.contrib.auth import get_user_model
-User = get_user_model() 
+from forum.models import Forum
+from users.models import UserProfile
+
 
 class Room(models.Model):
     name = models.CharField(max_length=255, unique=True, null=True,blank=True)  
@@ -9,6 +9,7 @@ class Room(models.Model):
     admin = models.ForeignKey(UserProfile, on_delete=models.SET_NULL, null=True, blank=True, related_name="admin_rooms")  
     created_at = models.DateTimeField(auto_now_add=True)  
     is_dm = models.BooleanField(default=False)  # True if it is a DM room.
+    forum = models.ForeignKey(Forum, null=True, blank=True, on_delete=models.CASCADE)
 
     def __str__(self):
         return self.name

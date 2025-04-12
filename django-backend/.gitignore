@@ -5,3 +5,4 @@ __pycache__/
 .gitignore
 mlmodel/__pycache__/
 env/
+*./migrations/
