@@ -19,6 +19,7 @@ router.register(r"user_assessments", UserAssessmentViewSet)
 urlpatterns = [
     path("", include(router.urls)),
     path("grade/", views.GradeAssessmentView.as_view()),
-    path("assess_user/", views.AssessUserView.as_view()),
+    path("assess_medical/", views.AssessMedicalProfileView.as_view()),
+    path("generate_questions/", views.GenerateQuestionsView.as_view()),
 
 ]

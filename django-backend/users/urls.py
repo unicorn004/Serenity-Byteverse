@@ -11,8 +11,8 @@ from users.views.user_views import (
 
 # Create router for ViewSets
 router = DefaultRouter()
-router.register(r'medical-profile', MedicalProfileViewSet, basename='medical-profile')
-router.register(r'user-profile', UserProfileViewSet, basename='user-profile')
+router.register(r'medical-profile', medical_profile_views.MedicalProfileViewSet, basename='medical-profile')
+router.register(r'user-profile', user_views.UserProfileViewSet, basename='user-profile')
 
 urlpatterns = [
     # Authentication Endpoints

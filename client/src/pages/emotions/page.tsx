@@ -1,32 +1,49 @@
+import { useState, useRef, useEffect } from "react";
+import { Camera, RefreshCw, Info } from "lucide-react";
 
-
-import { useState, useRef, useEffect } from "react"
-import { Camera, RefreshCw, Info } from "lucide-react"
-
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 //import { Button } from "../../components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
-type Emotion = "happy" | "sad" | "angry" | "neutral" | "surprised" | "fearful" | null
+type Emotion =
+  | "happy"
+  | "sad"
+  | "angry"
+  | "neutral"
+  | "surprised"
+  | "fearful"
+  | null;
 
 interface EmotionData {
-  emotion: Emotion
-  confidence: number
-  color: string
-  message: string
-  suggestions: string[]
+  emotion: Emotion;
+  confidence: number;
+  color: string;
+  message: string;
+  suggestions: string[];
 }
 
 export default function EmotionsPage() {
-  const [currentEmotion, setCurrentEmotion] = useState<Emotion>(null)
-  const [emotionData, setEmotionData] = useState<EmotionData | null>(null)
-  const [cameraActive, setCameraActive] = useState(false)
-  const [analyzing, setAnalyzing] = useState(false)
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [currentEmotion, setCurrentEmotion] = useState<Emotion>(null);
+  const [emotionData, setEmotionData] = useState<EmotionData | null>(null);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const emotions: Record<string, EmotionData> = {
     happy: {
@@ -101,9 +118,16 @@ export default function EmotionsPage() {
         "Consider what specific fear is present and if there are steps you can take",
       ],
     },
-  }
+  };
+
 
   const startCamera = async () => {
+    if (!videoRef.current) {
+      console.warn("videoRef.current is null. Retrying in 200ms...");
+      setTimeout(startCamera, 200);
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -111,63 +135,80 @@ export default function EmotionsPage() {
           width: { ideal: 640 },
           height: { ideal: 480 },
         },
-      })
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        setCameraActive(true)
-      }
+      });
+      videoRef.current.srcObject = stream;
+      setCameraActive(true);
+      console.log("Camera started successfully");
     } catch (err) {
-      console.error("Error accessing camera:", err)
-      alert("Unable to access camera. Please check permissions and try again.")
+      console.error("Error accessing camera:", err);
     }
-  }
+  };
 
   const stopCamera = () => {
     if (videoRef.current && videoRef.current.srcObject) {
-      const tracks = (videoRef.current.srcObject as MediaStream).getTracks()
-      tracks.forEach((track) => track.stop())
-      videoRef.current.srcObject = null
-      setCameraActive(false)
+      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+      tracks.forEach((track) => track.stop());
+      videoRef.current.srcObject = null;
+      setCameraActive(false);
+      console.log("Camera stopped successfully");
+    } else {
+      console.warn("Camera is not active or already stopped");
     }
-  }
+  };
 
   const captureImage = () => {
-    if (!videoRef.current || !canvasRef.current) return
+    if (!videoRef.current || !canvasRef.current) return;
 
-    setAnalyzing(true)
+    setAnalyzing(true);
 
-    const context = canvasRef.current.getContext("2d")
-    if (!context) return
+    const context = canvasRef.current.getContext("2d");
+    if (!context) return;
 
     // Set canvas dimensions to match video
-    canvasRef.current.width = videoRef.current.videoWidth
-    canvasRef.current.height = videoRef.current.videoHeight
+    canvasRef.current.width = videoRef.current.videoWidth;
+    canvasRef.current.height = videoRef.current.videoHeight;
 
     // Draw the current video frame to the canvas
-    context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height)
+    context.drawImage(
+      videoRef.current,
+      0,
+      0,
+      canvasRef.current.width,
+      canvasRef.current.height
+    );
 
     // Simulate emotion detection (in a real app, you'd send the image to an API)
     setTimeout(() => {
-      const emotions = ["happy", "sad", "angry", "neutral", "surprised", "fearful"]
-      const randomEmotion = emotions[Math.floor(Math.random() * emotions.length)] as Emotion
+      const emotions = [
+        "happy",
+        "sad",
+        "angry",
+        "neutral",
+        "surprised",
+        "fearful",
+      ];
+      const randomEmotion = emotions[
+        Math.floor(Math.random() * emotions.length)
+      ] as Emotion;
 
-      setCurrentEmotion(randomEmotion)
-      setEmotionData(emotions[randomEmotion])
-      setAnalyzing(false)
-    }, 2000)
-  }
+      setCurrentEmotion(randomEmotion);
+      setEmotionData(emotions[randomEmotion]);
+      setAnalyzing(false);
+    }, 2000);
+  };
 
   // Clean up camera on unmount
   useEffect(() => {
     return () => {
-      stopCamera()
-    }
-  }, [])
+      stopCamera();
+    };
+  }, []);
 
   return (
     <div className="container mx-auto max-w-5xl py-8 lg:pl-15 lg:pr-15 md:pl-10 md:pr-10 sm:pl-5 sm:pr-5">
-      <h1 className="mb-8 text-center text-3xl font-bold text-primary">Emotion Detection</h1>
+      <h1 className="mb-8 text-center text-3xl font-bold text-primary">
+        Emotion Detection
+      </h1>
 
       <div className="grid gap-8 md:grid-cols-2">
         <div>
@@ -184,33 +225,49 @@ export default function EmotionsPage() {
                     </TooltipTrigger>
                     <TooltipContent>
                       <p className="max-w-xs text-sm">
-                        We use AI to detect your emotions from facial expressions. Your privacy is important - images
-                        are processed locally and not stored.
+                        We use AI to detect your emotions from facial
+                        expressions. Your privacy is important - images are
+                        processed locally and not stored.
                       </p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               </div>
-              <CardDescription>Allow camera access to detect your emotional state</CardDescription>
+              <CardDescription>
+                Allow camera access to detect your emotional state
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="relative aspect-video overflow-hidden rounded-lg bg-muted">
-                {!cameraActive ? (
+                {/* Always render the video element but control visibility */}
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className={`h-full w-full object-cover ${
+                    cameraActive ? "block" : "hidden"
+                  }`}
+                />
+                {/* Show placeholder when camera is off */}
+                {!cameraActive && (
                   <div className="flex h-full flex-col items-center justify-center">
                     <Camera className="mb-2 h-12 w-12 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">Camera is off</p>
+                    <p className="text-sm text-muted-foreground">
+                      Camera is off
+                    </p>
                   </div>
-                ) : (
-                  <>
-                    <video ref={videoRef} autoPlay playsInline muted className="h-full w-full object-cover" />
-                    {analyzing && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
-                        <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-                        <p className="text-lg font-medium">Analyzing your emotion...</p>
-                      </div>
-                    )}
-                  </>
                 )}
+                {/* Show analyzing overlay when analyzing */}
+                {analyzing && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
+                    <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+                    <p className="text-lg font-medium">
+                      Analyzing your emotion...
+                    </p>
+                  </div>
+                )}
+                {/* Hidden canvas for capturing frames */}
                 <canvas ref={canvasRef} className="hidden" />
               </div>
             </CardContent>
@@ -221,7 +278,11 @@ export default function EmotionsPage() {
               >
                 {cameraActive ? "Turn Off Camera" : "Turn On Camera"}
               </Button>
-              <Button onClick={captureImage} disabled={!cameraActive || analyzing} className="gap-2">
+              <Button
+                onClick={captureImage}
+                disabled={!cameraActive || analyzing}
+                className="gap-2"
+              >
                 {analyzing ? (
                   <>
                     <RefreshCw className="h-4 w-4 animate-spin" />
@@ -237,7 +298,9 @@ export default function EmotionsPage() {
 
         <div>
           <Card
-            className={`border-none shadow-md transition-all duration-500 ${currentEmotion ? "opacity-100" : "opacity-70"}`}
+            className={`border-none shadow-md transition-all duration-500 ${
+              currentEmotion ? "opacity-100" : "opacity-70"
+            }`}
           >
             <CardHeader>
               <CardTitle>Emotion Analysis</CardTitle>
@@ -252,8 +315,12 @@ export default function EmotionsPage() {
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-xl font-semibold capitalize">{currentEmotion}</h3>
-                      <p className="text-sm text-muted-foreground">Confidence: {emotionData?.confidence}%</p>
+                      <h3 className="text-xl font-semibold capitalize">
+                        {currentEmotion}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Confidence: {emotionData?.confidence}%
+                      </p>
                     </div>
                     <div
                       className={`flex h-16 w-16 items-center justify-center rounded-full ${emotionData?.color} text-white`}
@@ -288,7 +355,9 @@ export default function EmotionsPage() {
             <Card className="mt-6 border-none shadow-md">
               <CardHeader>
                 <CardTitle>Recommendations</CardTitle>
-                <CardDescription>Based on your current emotional state</CardDescription>
+                <CardDescription>
+                  Based on your current emotional state
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <Tabs defaultValue="suggestions">
@@ -314,18 +383,24 @@ export default function EmotionsPage() {
                         <h4 className="mb-1 font-medium">Guided Meditation</h4>
                         <p className="text-sm text-muted-foreground">
                           5-minute meditation for{" "}
-                          {currentEmotion === "happy" ? "joy amplification" : "emotional balance"}
+                          {currentEmotion === "happy"
+                            ? "joy amplification"
+                            : "emotional balance"}
                         </p>
                       </div>
 
                       <div>
                         <h4 className="mb-1 font-medium">Reading Material</h4>
-                        <p className="text-sm text-muted-foreground">{getReadingMaterial(currentEmotion)}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {getReadingMaterial(currentEmotion)}
+                        </p>
                       </div>
 
                       <div>
                         <h4 className="mb-1 font-medium">Exercises</h4>
-                        <p className="text-sm text-muted-foreground">{getExercises(currentEmotion)}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {getExercises(currentEmotion)}
+                        </p>
                       </div>
                     </div>
                   </TabsContent>
@@ -336,63 +411,62 @@ export default function EmotionsPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function getEmotionIcon(emotion: Emotion) {
   switch (emotion) {
     case "happy":
-      return "😊"
+      return "😊";
     case "sad":
-      return "😢"
+      return "😢";
     case "angry":
-      return "😠"
+      return "😠";
     case "neutral":
-      return "😐"
+      return "😐";
     case "surprised":
-      return "😲"
+      return "😲";
     case "fearful":
-      return "😨"
+      return "😨";
     default:
-      return "❓"
+      return "❓";
   }
 }
 
 function getReadingMaterial(emotion: Emotion) {
   switch (emotion) {
     case "happy":
-      return '"The Science of Savoring Positive Emotions" - techniques to extend positive feelings'
+      return '"The Science of Savoring Positive Emotions" - techniques to extend positive feelings';
     case "sad":
-      return '"Embracing Difficult Emotions" - how sadness can lead to personal growth'
+      return '"Embracing Difficult Emotions" - how sadness can lead to personal growth';
     case "angry":
-      return '"Constructive Approaches to Anger" - channeling anger productively'
+      return '"Constructive Approaches to Anger" - channeling anger productively';
     case "neutral":
-      return '"Mindfulness in Everyday Life" - finding meaning in ordinary moments'
+      return '"Mindfulness in Everyday Life" - finding meaning in ordinary moments';
     case "surprised":
-      return '"Adapting to Unexpected Change" - turning surprises into opportunities'
+      return '"Adapting to Unexpected Change" - turning surprises into opportunities';
     case "fearful":
-      return '"Understanding Your Fear Response" - techniques to manage anxiety'
+      return '"Understanding Your Fear Response" - techniques to manage anxiety';
     default:
-      return '"Emotional Intelligence" - understanding your emotional landscape'
+      return '"Emotional Intelligence" - understanding your emotional landscape';
   }
 }
 
 function getExercises(emotion: Emotion) {
   switch (emotion) {
     case "happy":
-      return "Gratitude journaling, savoring walk, sharing positive experiences"
+      return "Gratitude journaling, savoring walk, sharing positive experiences";
     case "sad":
-      return "Self-compassion meditation, gentle movement, expressive writing"
+      return "Self-compassion meditation, gentle movement, expressive writing";
     case "angry":
-      return "Progressive muscle relaxation, physical exercise, reframing techniques"
+      return "Progressive muscle relaxation, physical exercise, reframing techniques";
     case "neutral":
-      return "Body scan meditation, sensory awareness practice, values reflection"
+      return "Body scan meditation, sensory awareness practice, values reflection";
     case "surprised":
-      return "Curiosity journaling, flexible thinking exercises, adaptation planning"
+      return "Curiosity journaling, flexible thinking exercises, adaptation planning";
     case "fearful":
-      return "Grounding techniques, exposure exercises, worry scheduling"
+      return "Grounding techniques, exposure exercises, worry scheduling";
     default:
-      return "Emotional awareness check-in, breathing exercises, mindful walking"
+      return "Emotional awareness check-in, breathing exercises, mindful walking";
   }
 }
-
