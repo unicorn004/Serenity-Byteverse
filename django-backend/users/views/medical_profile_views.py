@@ -5,25 +5,23 @@ from users.serializers import MedicalProfileSerializer
 
 class MedicalProfileViewSet(viewsets.ModelViewSet):
     """
-    This ViewSet provides CRUD operations for the medical profile of the user.
+    ViewSet for CRUD operations on the medical profile.
     """
     serializer_class = MedicalProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         """
-        Override to ensure that we return the medical profile for the currently authenticated user.
+        Ensure that the queryset only returns the medical profile for the authenticated user.
         """
         user_profile = UserProfile.objects.get(user=self.request.user)
         return MedicalProfile.objects.filter(user=user_profile)
 
     def perform_create(self, serializer):
         """
-        Override to ensure a user can only have one medical profile.
+        Prevent a user from creating multiple medical profiles.
         """
         user_profile = UserProfile.objects.get(user=self.request.user)
-        medical_profile, created = MedicalProfile.objects.get_or_create(user=user_profile)
-        if created:
-            serializer.save(user=user_profile)
-        else:
+        if MedicalProfile.objects.filter(user=user_profile).exists():
             return Response({"detail": "Medical Profile already exists."}, status=status.HTTP_400_BAD_REQUEST)
+        serializer.save(user=user_profile)
