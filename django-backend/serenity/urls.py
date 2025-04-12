@@ -24,4 +24,6 @@ urlpatterns = [
     path('assessment/', include('assessment.urls')),
     path('doctor/', include('doctor.urls')),
     path('api/emotion/', include('emotion_detector.urls')),
+    path('chatbot/', include('mlmodel.urls')),
+
 ]
