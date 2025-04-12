@@ -1,10 +1,10 @@
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework.routers import DefaultRouter
-from .views import (
-    DiaryListView, GoalListView, NotificationListView,
-    CreateDiaryView, CreateGoalView
-)
+# from .views import (
+#     DiaryListView, GoalListView, NotificationListView,
+#     CreateDiaryView, CreateGoalView
+# )
 from .views import medical_profile_views, user_views
 
 router = DefaultRouter()
@@ -22,9 +22,9 @@ urlpatterns = [
 
     path('api/', include(router.urls)),  # This will route both UserProfileViewSet and MedicalProfileViewSet
 
-    path('diary/', DiaryListView.as_view(), name='diary-list'),
-    path('goal/', GoalListView.as_view(), name='goal-list'),
-    path('notifications/', NotificationListView.as_view(), name='notification-list'),
-    path('diary/create', CreateDiaryView.as_view(), name='create-diary'),
-    path('add-goal', CreateGoalView.as_view(), name='goal-add'),
+    # path('diary/', DiaryListView.as_view(), name='diary-list'),
+    # path('goal/', GoalListView.as_view(), name='goal-list'),
+    # path('notifications/', NotificationListView.as_view(), name='notification-list'),
+    # path('diary/create', CreateDiaryView.as_view(), name='create-diary'),
+    # path('add-goal', CreateGoalView.as_view(), name='goal-add'),
 ]

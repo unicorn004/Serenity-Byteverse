@@ -2,8 +2,8 @@ from rest_framework import viewsets, status, generics, permissions
 from rest_framework.response import Response
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import UserProfile
-from .serializers import (
+from users.models import UserProfile
+from users.serializers import (
     RegisterSerializer, LoginSerializer, UserProfileSerializer
 )
 

@@ -1,7 +1,7 @@
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
-from .models import UserProfile, MedicalProfile
-from .serializers import MedicalProfileSerializer
+from users.models import UserProfile, MedicalProfile
+from users.serializers import MedicalProfileSerializer
 
 class MedicalProfileViewSet(viewsets.ModelViewSet):
     """
