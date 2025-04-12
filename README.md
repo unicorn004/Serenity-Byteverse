@@ -54,7 +54,8 @@ Serenity is a comprehensive mental wellness platform that helps users assess the
 - **Frontend**: Next.js, Tailwind CSS
 - **Backend**: Django, Django REST Framework, Django REST Framework Simple JWT, Node.js
 - **Database**: PostgreSQL, MongoDB
-- **Authentication**: JWT-based authentication
+- **ML/GenAI**: Langchain, HuggingFace, Groq
+
 
 ## Video Walkthrough
 
