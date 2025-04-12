@@ -28,15 +28,15 @@ class Question(models.Model):
         return f"{self.assessment.name} - Q{self.order}: {self.text}"
 
 class Answer(models.Model):
-    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name="responses")
-    question = models.ForeignKey(Question, on_delete=models.CASCADE)
+    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name="users")
+    question = models.OneToOneField(Question, on_delete=models.CASCADE, related_name="response")
     response_text = models.TextField(blank=True, null=True)
     response_score = models.IntegerField(blank=True, null=True)  # Objective score
     llm_score = models.FloatField(blank=True, null=True)  # Subjective LLM score
     date_taken = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.user.username} - {self.question.text}: {self.response_text or self.response_score}"
+        return f"{self.user.user.username} - {self.question.text}: {self.response_text or self.response_score}"
 
 class UserAssessment(models.Model):
     user = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name="assessments")
@@ -49,8 +49,8 @@ class UserAssessment(models.Model):
 
     def calculate_total_score(self):
         return sum(
-            response.llm_score or response.response_score 
-            for response in self.responses.all()
+            question.response.llm_score or question.response.response_score 
+            for question in self.assessment.questions.all()
         )
 
     def determine_severity(self):
@@ -69,5 +69,5 @@ class UserAssessment(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.user.username} - {self.assessment.name} ({self.date_taken})"
+        return f"{self.user.user.username} - {self.assessment.name} ({self.date_taken})"
 
