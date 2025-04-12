@@ -21,7 +21,7 @@ urlpatterns = [
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
     # ViewSet-based endpoints
-    path('api/', include(router.urls)),  
+    path('', include(router.urls)),  
 
     # Function-based views (non-ViewSet)
     path('diary/', DiaryListView.as_view(), name='diary-list'),
