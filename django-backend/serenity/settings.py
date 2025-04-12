@@ -11,19 +11,21 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure--m^*wi@bdvu3g#uw@uza$b&)w7u8_+-s)dav$v49%_@0(l2uqp'
+SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG',"False") == 'True'
 
 ALLOWED_HOSTS = []
 
@@ -84,15 +86,7 @@ WSGI_APPLICATION = 'serenity.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'djongo',
-        'NAME': 'serenity',
-        'CLIENT': {
-            'host': 'mongodb+srv://tanmaysinkar2021:8BX2C9XCL7kh6oNR@cluster0.ttw0p.mongodb.net/serenity?retryWrites=true&w=majority',
-        },
-    }
-}
+DATABASES = {}
 
 
 # Password validation
