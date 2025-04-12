@@ -20,7 +20,7 @@ class MedicalProfile(models.Model):
     user = models.OneToOneField(UserProfile, on_delete=models.CASCADE, related_name='medical_profile')
     conditions = models.TextField(blank=True, null=True)
     medications = models.TextField(blank=True, null=True)
-    mood_score = models.FloatField(null=True, blank=True)  # 0-100 grayscale
+    personality_score = models.FloatField(null=True, blank=True)  # 0-100 grayscale
     llm_remark = models.TextField(blank=True, null=True)
 
 

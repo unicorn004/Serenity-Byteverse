@@ -51,6 +51,18 @@ DYNAMIC_QUESTION_PROMPT = PromptTemplate(
     """
 )
 
+USER_REMARK_PROMPT = PromptTemplate(
+    input_variables=["context"],
+    template="""
+    You are a mental health professional.
+    Based on the context provided, which includes the summaries of the user's personality and mental state based on various assessments, develop an overall view of the user's mental state, short term and long term, for further analysis and recommendations.
+    
+    Context: {context}
+    
+    Output only the summary as a professional remark text.
+    """
+)
+
 # Function to Assign LLM Scores
 def assign_llm_scores(responses):
     """
@@ -71,11 +83,7 @@ def assign_llm_scores(responses):
             response.llm_score = None  # Handle invalid outputs gracefully
         response.save()
 
-# Function to Generate Subjective Remarks
-def generate_llm_remark(user_assessment):
-    """
-    Generate a personalized remark for the user based on their assessment responses.
-    """
+def get_assessment_context(user_assessment):
     user_profile = user_assessment.user
     questions = user_assessment.assessment.questions.all()
     context = {
@@ -90,17 +98,74 @@ def generate_llm_remark(user_assessment):
             for resp in questions
         }),
         "assessment": user_assessment.assessment.name,
+        "previous_analysis": {
+        "remark":user_assessment.llm_remark if user_assessment.llm_remark else "No Previous Remark",
+        "total_score":user_assessment.total_score if user_assessment.total_score else "No previous score",
+        "severity":user_assessment.severity if user_assessment.severity else "No severity"
+        
+        },
     }
+    return context
+
+# Function to Generate Subjective Remarks
+def generate_llm_remark(user_assessment):
+    """
+    Generate a personalized remark for the user based on their assessment responses.
+    """
+    context = get_assessment_context(user_assessment)
     prompt = REMARK_PROMPT.format(**context)
     llm_response = llm.invoke(prompt)
     user_assessment.llm_remark = llm_response.content.strip()
     user_assessment.save()
 
+def get_user_context(userprofile):
+    assessments = userprofile.user.assessments.all()
+    assessment_context = {}
+    for ass in assessments[:5]:
+        if not ass.llm_remark:
+            grade_assessment(ass)
+
+        assessment_context[ass.assessment.name] =  {
+            "assesssment_description":ass.assessment.description,
+            "assessment_severity_mapping":ass.assessment_severity_mapping, 
+            "remark":ass.llm_remark if ass.llm_remark else "No Previous Remark",
+            "total_score":ass.total_score if ass.total_score else "No previous score",
+            "severity":ass.severity if ass.severity else "No severity"         
+        }
+    
+    context = {
+        "user_context":{
+            "name":userprofile.user.user.username,
+            "age":userprofile.user.age,
+            "gender":userprofile.user.gender,
+            "bio":userprofile.user.bio, 
+            "preferences":userprofile.user.preferences,
+            "medical_profile":{
+                "personality_score":userprofile.personality_score,
+                "conditions":userprofile.conditions,
+                "medications":userprofile.medications,
+                "llm_remark":userprofile.llm_remark
+            }
+        },
+        "assessments_context":assessment_context
+     
+    }
+    return context
+
+
+def generate_user_remark(userprofile): # THis rather has to be a medicalProfile Object (in users.models), just mentioned userprofile in the flow.
+    context = get_user_context(userprofile)
+    prompt = USER_REMARK_PROMPT.format(**context)
+    llm_response = llm.invoke(prompt)
+    userprofile.llm_remark = llm_response.content.strip()
+
 # Function to Dynamically Suggest Questions
-def suggest_next_question(context):
+def suggest_next_question(user_assessment, medicalprofile):
     """
     Suggest the next relevant question based on the current context.
     """
+    user_context = get_user_context(medicalprofile)["user_context"]
+    context = get_assessment_context(user_assessment)
     prompt = DYNAMIC_QUESTION_PROMPT.format(context=context)
     llm_response = llm.invoke(prompt)
     return llm_response.content.strip()
